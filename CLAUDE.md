@@ -6,6 +6,15 @@ submission — repo link, documentation, and a video walkthrough — is due **16
 
 Read `docs/01-glossary-v2.md` and `docs/02-hld.md` before writing code. They are authoritative.
 
+Full document set:
+- `README.md` — what the code is and how to run it
+- `docs/01-glossary-v2.md` — vocabulary, ICC/escrow mapping, banned terms
+- `docs/02-hld.md` — containers, domain model, node/graph contract, lifecycle, scope
+- `docs/03-pitch.md` — 10-minute script, slide plan, Q&A preparation
+- `docs/04-scenarios.md` — hero deal and four evidence packs as executable specs (**the test spec**)
+- `docs/05-evidence-base.md` — every external number with its source; assert nothing outside it
+- `docs/adr/0001`–`0005` — the five load-bearing decisions
+
 ---
 
 ## Act as
@@ -156,7 +165,7 @@ javac -d out $(find src -name '*.java') && java -cp out com.sc.verdict.party.Aut
 
 ### Not yet built
 L2, L4, L6, L8, L5, orchestrator, Spring Boot shell, Postgres schema, web UI.
-ADRs 002–005 are decided (see rules above) but not written up.
+ADRs 001–005 are written. L2/L4 acceptance criteria are in `docs/04-scenarios.md`.
 
 ---
 
