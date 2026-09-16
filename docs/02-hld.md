@@ -90,64 +90,66 @@ and it is one-directional — nothing crosses back.
 > Note on your mental model: **settlement is inside Money; obligations are inside Decision.** The
 > planes are drawn one level above those pieces.
 
+**4.1 Structure — the planes and the one contract between them.** Each plane is a coloured cluster;
+the determination (thick arrow) is the only thing that crosses from decision to money.
+
 ```mermaid
 flowchart TB
-    subgraph exp["L9 · EXPERIENCE"]
-        api["Deal API · REST"]
-        console["Ops console"]
-        portal["Counterparty portal"]
+    exp["L9 · Experience — Deal API · Ops console · Counterparty portal"]
+    orch["Orchestrator — GraphRunner over the 12-node library"]
+
+    subgraph dec["DECISION PLANE — what should happen"]
+        direction LR
+        l1["L1 · Contract<br/>versions, clauses"]
+        l2["L2 · Obligations<br/>milestones, splits"]
+        l4["L4 · Examination<br/>rules · no model call"]
+        l0["L0 · Authority<br/>mandates, admission"]
+        l5["L5 · Case &amp; Approval"]
+        l1 --> l2 --> l4
     end
 
-    subgraph orch["ORCHESTRATOR · graph runtime"]
-        runner["GraphRunner<br/><i>runs a GraphDefinition</i>"]
-        nodes["Node library · 12 nodes<br/><i>code, shared by every deal type</i>"]
+    subgraph ev["EVIDENCE PLANE — why it happened"]
+        direction LR
+        l3["L3 · Evidence intake<br/>adapters, facts"]
+        l8["L8 · Journal + Replay<br/>append-only"]
     end
 
-    subgraph dec["🟩 DECISION PLANE · what should happen"]
-        l0["L0 · Party &amp; Authority<br/><i>mandates, quorum, admission gate</i>"]
-        l1["L1 · Contract Registry<br/><i>versions, clause refs</i>"]
-        l2["L2 · Obligation Model<br/><i>milestones, conditions, splits</i>"]
-        l4["L4 · Examination Engine<br/><i>deterministic rules · no model call</i>"]
-        l5["L5 · Case &amp; Approval<br/><i>escalation, maker-checker</i>"]
-        ent["Entitlement view<br/><i>Σ owed, independent</i>"]
+    subgraph mon["MONEY PLANE — what did happen"]
+        direction LR
+        l6["L6 · Fund control ledger<br/>double-entry, earmarks"]
+        l7["L7 · Settlement<br/>rail port · pacs.008"]
+        l6 --> l7
     end
 
-    subgraph ev["🟦 EVIDENCE PLANE · why it happened"]
-        l3["L3 · Evidence Intake<br/><i>adapters, extracted facts</i>"]
-        l8["L8 · Decision Journal + Replay<br/><i>append-only, replayable</i>"]
-    end
-
-    subgraph mon["🟧 MONEY PLANE · what did happen"]
-        l6["L6 · Fund Control Ledger<br/><i>double-entry, earmarks</i>"]
-        l7["L7 · Settlement adapter<br/><i>rail port · pacs.008</i>"]
-    end
-
-    scr["Screening adapter<br/><i>port · mocked</i>"]
-
-    exp --> runner
-    runner --> nodes
-    nodes -.->|"every state-changing node"| l0
-    l0 -.-> scr
-    l1 --> l2 --> l4
-    l3 -->|"extracted facts<br/>(never decisions)"| l4
-    l4 -->|"⟹ DETERMINATION<br/>the only contract"| l6
-    l4 --> l5
-    l5 -->|"approval enters<br/>as evidence"| l3
-    l6 --> l7
-    l4 -.->|"journal entry"| l8
-    l6 -.->|"journal entry"| l8
-
-    recon{{"RECONCILIATION CONTROL<br/>Σ entitlements == Σ earmarks"}}
-    ent -.-> recon
-    l6 -.-> recon
+    exp --> orch --> dec
+    l3 -->|"facts · never decisions"| l4
+    l4 ==>|"DETERMINATION · the only contract"| l6
+    l4 -->|"findings"| l5 -->|"approval re-enters as evidence"| l3
+    l4 -.->|"journal"| l8
+    l6 -.->|"journal"| l8
 
     style dec fill:#e8f0ec,stroke:#0d5c3f,stroke-width:3px
-    style mon fill:#fdf0e6,stroke:#b5651d,stroke-width:3px
     style ev fill:#eceef5,stroke:#3a4a7a,stroke-width:3px
-    style orch fill:#f6f3ff,stroke:#5a3a8a,stroke-width:2px
-    style recon fill:#fff3cd,stroke:#856404,stroke-width:2px
+    style mon fill:#fdf0e6,stroke:#b5651d,stroke-width:3px
     style l4 fill:#0d5c3f,color:#fff
     style l6 fill:#b5651d,color:#fff
+```
+
+Three components are mocked, each **behind a real port** so exactly one file changes to go live:
+the **screening** adapter (called by L0 on every instruction), the **extraction** adapter (L3), and
+the **settlement** rail (L7). The call sites are real; see §5.
+
+**4.2 The reconciliation control (ADR-005).** Kept as its own view deliberately: its two inputs come
+from *different planes* and are computed independently, which is the entire point — if they ever
+disagree, that is the alarm.
+
+```mermaid
+flowchart LR
+    ent["Entitlement view<br/><i>Σ owed · decision plane</i>"] --> recon{{"RECONCILIATION<br/>Σ entitlements == Σ earmarks"}}
+    ear["Earmarks<br/><i>Σ reserved · money plane</i>"] --> recon
+    recon --> drift["alert on any drift<br/><i>not a month-end report</i>"]
+
+    style recon fill:#fff3cd,stroke:#856404,stroke-width:2px
 ```
 
 **The two boundaries that define the system:**
