@@ -21,7 +21,9 @@ public enum FindingGrade {
     /** A required document is absent. Cannot be examined into a release. */
     MISSING_DOCUMENT(false, false, false),
     /** A material breach of terms. Never auto-approvable; requires fresh evidence or termination. */
-    SUBSTANTIVE(false, false, false);
+    SUBSTANTIVE(false, false, false),
+    /** An outstanding objection or lien (construction retention). Party-approvable once resolved. */
+    OBJECTION(false, false, true);
 
     private final boolean severable;
     private final boolean autoApprovable;

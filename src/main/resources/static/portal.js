@@ -1,59 +1,72 @@
-// Verdict counterparty portal — the buyer's view. Shares the same backend state as the ops console.
+// Verdict counterparty portal — the buyer's view. Shares backend state with the ops console.
 
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money = (m) => m ? `${m.currency} ${Number(m.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}` : '—';
 
-async function getJSON(p) { const r = await fetch(p); if (!r.ok) throw new Error((await r.json()).error || r.statusText); return r.json(); }
-async function postJSON(p) { const r = await fetch(p, {method: 'POST'}); if (!r.ok) throw new Error((await r.json()).error || r.statusText); return r.json(); }
+async function apiError(r) {
+  const ct = r.headers.get('content-type') || '';
+  if (ct.includes('application/json')) { try { return (await r.json()).error || r.statusText; } catch (e) {} }
+  return `HTTP ${r.status}. Open this app at http://localhost:8080 (run ./scripts/run-app.sh) — the IDE file preview has no /api backend.`;
+}
+async function getJSON(p) { const r = await fetch(p); if (!r.ok) throw new Error(await apiError(r)); return r.json(); }
+async function postJSON(p) { const r = await fetch(p, {method: 'POST'}); if (!r.ok) throw new Error(await apiError(r)); return r.json(); }
+
+let awaitingTxn = null;
 
 async function init() {
-  const deal = await getJSON('/api/deal');
+  const c = await getJSON('/api/contract');
   $('dealChips').innerHTML = [
-    `<span class="chip"><b>${esc(deal.id)}</b></span>`,
-    `<span class="chip">Value <b>${money(deal.contractValue)}</b></span>`,
-    `<span class="chip"><b>${deal.quantity.toLocaleString()}</b> units · ${esc(deal.goods)}</span>`
+    `<span class="chip"><b>${esc(c.id)}</b></span>`,
+    `<span class="chip">Shipment tranche <b>${money(c.shipmentValue)}</b></span>`,
+    `<span class="chip"><b>${c.quantity.toLocaleString()}</b> units · ${esc(c.goods)}</span>`
   ].join('');
-  await Promise.all([refreshPending(), refreshLedger()]);
+  await refresh();
 }
 
-async function refreshPending() {
-  const p = await getJSON('/api/pending');
-  if (p.pending === false || p.outcome !== 'HOLD_PENDING_APPROVAL') {
+async function refresh() {
+  const txns = await getJSON('/api/transactions');
+  const pending = txns.filter(t => t.outcome === 'HOLD_PENDING_APPROVAL' && !t.disbursed);
+  const pendingTxn = pending[0];
+  awaitingTxn = pendingTxn ? pendingTxn.id : null;
+  const badge = document.getElementById('navBadge');
+  if (badge) { badge.hidden = pending.length === 0; badge.textContent = pending.length ? `● ${pending.length} awaiting` : ''; }
+
+  if (!awaitingTxn) {
     $('pending').innerHTML = '<p class="empty">Nothing is awaiting your approval right now.</p>' +
-      '<p class="hint">When the ops team examines a submission with a waivable finding, the request appears here.</p>';
+      '<p class="hint">When the bank examines a submission with a waivable finding, the request appears here.</p>';
+    $('ledger').innerHTML = '<p class="empty">—</p>';
     return;
   }
+  const p = await getJSON(`/api/transactions/${awaitingTxn}/pending`);
   $('pending').innerHTML = `
-    <div class="outcome">
-      <span class="badge badge-HOLD_PENDING_APPROVAL">HOLD PENDING APPROVAL</span>
-    </div>
+    <div class="outcome"><span class="badge badge-HOLD_PENDING_APPROVAL">HOLD PENDING APPROVAL</span>
+      <span class="chip" style="background:#eef0f6;color:#3a4a7a">${esc(awaitingTxn)}</span></div>
     <p class="hint">A finding on the shipment tranche requires your approval before release.
       Your Treasury Manager may approve up to USD 50,000 alone; above that, the CFO must countersign.</p>
     <pre class="notice" id="noticeText"></pre>
     <button class="primary" style="margin-top:14px" onclick="approve()">Approve — Treasury &amp; CFO (dual sign)</button>`;
   $('noticeText').textContent = p.findingsNotice;
+  await refreshLedger(awaitingTxn);
 }
 
 async function approve() {
   try {
-    const view = await postJSON('/api/approve');
+    const view = await postJSON(`/api/transactions/${awaitingTxn}/approve`);
     const steps = view.steps.map(s =>
-      `<li><span class="r ${esc(s.result)}">${esc(s.result)}</span>
-           <span>${esc(s.label)}</span><span class="d">— ${esc(s.detail)}</span></li>`).join('');
+      `<li><span class="r ${esc(s.result)}">${esc(s.result)}</span><span>${esc(s.label)}</span>
+           <span class="d">— ${esc(s.detail)}</span></li>`).join('');
     $('pending').innerHTML = `
       <div class="outcome"><span class="badge badge-RELEASE">RELEASED</span>
-        <div class="amounts"><div class="amt"><div class="n">${money(view.determination.released)}</div><div class="l">Released</div></div></div>
-      </div>
-      <p class="hint">Your approval entered the engine as evidence; it re-examined and released.
-        It did not go around the engine.</p>
+        <div class="amounts"><div class="amt"><div class="n">${money(view.determination.released)}</div><div class="l">Released</div></div></div></div>
+      <p class="hint">Your approval entered the engine as evidence; it re-examined and released. It did not go around the engine.</p>
       <ul class="steps">${steps}</ul>`;
-    await refreshLedger();
+    await refreshLedger(awaitingTxn);
   } catch (e) { alert(e.message); }
 }
 
-async function refreshLedger() {
-  const l = await getJSON('/api/ledger');
+async function refreshLedger(txn) {
+  const l = await getJSON(`/api/transactions/${txn}/ledger`);
   const r = l.reconciliation;
   $('ledger').innerHTML = `
     <div class="tiles">

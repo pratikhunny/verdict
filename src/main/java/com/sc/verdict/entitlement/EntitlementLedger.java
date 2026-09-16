@@ -33,6 +33,11 @@ public final class EntitlementLedger {
         }
     }
 
+    /** Seed a single obligation's entitlement — used when a transaction funds only part of a deal. */
+    public void seed(com.sc.verdict.shared.Ids.ObligationId obligationId, Money full) {
+        outstanding.put(obligationId, full);
+    }
+
     /** Reduce entitlement to reflect a determination, independently of any money movement. */
     public void apply(Determination determination) {
         Objects.requireNonNull(determination, "determination");

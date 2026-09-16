@@ -13,60 +13,129 @@
       <span class="tag">We didn't automate the agreement. We automated the disagreement.</span>
       <nav class="nav">
         <a href="index.html">Ops console</a>
-        <a href="portal.html">Counterparty portal</a>
+        <a href="portal.html">Counterparty portal <span id="navBadge" class="nav-badge" hidden></span></a>
       </nav>
     </div>
-    <div class="deal-chips" id="dealChips"></div>
   </header>
 
   <main>
-    <div class="toolbar">
-      <span class="label">Evidence pack</span>
-      <button class="primary" onclick="runPack('CLEAN')">1 · Clean</button>
-      <button class="primary" onclick="runPack('COSMETIC_VARIANCE')">2 · Cosmetic variance</button>
-      <button class="primary" onclick="runPack('SHORT_SHIPMENT')">3 · Short shipment</button>
-      <button class="primary" onclick="runPack('LATE_SHIPMENT')">4 · Late shipment</button>
-      <button class="ghost" onclick="resetDeal()">Reset</button>
-      <span class="ext-group" id="extGroup">
-        <span class="label">AI extraction (L3)</span>
-        <span id="extStatus" class="pill grade">…</span>
-        <button id="extBtn" class="ghost" onclick="toggleExtraction()">…</button>
-      </span>
-    </div>
-
-    <div class="grid">
-      <div>
-        <section class="card" id="detCard">
-          <h2>Determination</h2>
-          <div id="determination"><p class="empty">Run an evidence pack to examine it.</p></div>
-        </section>
-
-        <section class="card" id="approvalCard" hidden>
-          <h2>Approval · four-eyes <span class="sub">— human decision re-enters as evidence</span></h2>
-          <div id="approvalBody">
-            <p class="hint">Late shipment is held pending approval. The buyer approves on the
-              counterparty portal — or here, for the demo.</p>
-            <button class="primary" onclick="approve()">Approve as buyer (Treasury → CFO)</button>
-          </div>
-        </section>
-
-        <section class="card">
-          <h2>Node library · graphs are configuration</h2>
-          <div class="graphs" id="graphs"></div>
-        </section>
+    <!-- ① Deal type & graph — the very top -->
+    <section class="card">
+      <h2>① Deal type &amp; graph <span class="sub">— pick the master agreement; the graph dictates the flow</span></h2>
+      <div class="dealtype-bar">
+        <label>Master agreement / deal type:
+          <select id="dealTypeSelect" onchange="onDealType()"></select>
+        </label>
+        <span class="hint" id="dealTypeNote"></span>
       </div>
+      <div id="graph" class="graphwrap"></div>
+    </section>
 
-      <div>
-        <section class="card">
-          <h2>Fund control ledger</h2>
-          <div id="ledger"><p class="empty">—</p></div>
-        </section>
+    <!-- ② Master agreement (template — roles, split rules, conditions; no amounts) -->
+    <section class="card">
+      <h2>② Master agreement <span class="sub">— roles, split rules and conditions (a template — amounts are per transaction)</span></h2>
+      <div id="contract" class="empty">Loading…</div>
+    </section>
 
-        <section class="card">
-          <h2>Decision journal · append-only</h2>
-          <div id="journal"><p class="empty">—</p></div>
-          <div id="replayResult"></div>
-        </section>
+    <!-- ③ Transactions -->
+    <section class="card">
+      <h2>③ Transactions <span class="sub">— each instantiates the agreement: own parties, own amount, own lifecycle</span></h2>
+      <div class="txn-bar">
+        <button class="primary" onclick="newTransaction()">+ New transaction</button>
+        <div id="txnChips" class="txn-chips"></div>
+      </div>
+    </section>
+
+    <div id="lifecycle" hidden>
+      <div class="grid">
+        <div>
+          <!-- Parties & amount for THIS transaction -->
+          <section class="card">
+            <h2>Ⓐ Parties &amp; amount <span class="sub">— onboarded for this transaction (L0)</span></h2>
+            <div id="txnParties" class="empty">—</div>
+          </section>
+
+          <!-- Collect -->
+          <section class="card">
+            <h2>Ⓑ Collect funds <span class="sub">— money plane</span></h2>
+            <button class="primary" id="fundBtn" onclick="fund()">Fund wallet</button>
+            <p class="trigger">▶ In production: fired when the payer's funds settle into the escrow account (payment / RTGS webhook). No human click.</p>
+            <div id="ledger" class="empty">—</div>
+          </section>
+
+          <!-- Earmark -->
+          <section class="card">
+            <h2>Ⓒ Earmark to payees <span class="sub">— programmable wallet</span></h2>
+            <button class="primary" id="earmarkBtn" onclick="earmark()" disabled>Earmark</button>
+            <p class="trigger">▶ In production: automatic once funding is confirmed — reserves each payee's entitlement into a sub-wallet.</p>
+          </section>
+
+          <!-- Documents -->
+          <section class="card" id="docCard">
+            <h2>Ⓓ Documents <span class="sub">— evidence intake</span></h2>
+            <div class="uploader">
+              <label class="uploadbtn" id="uploadLabel">Upload document
+                <input type="file" id="fileInput" accept=".txt,.md,.csv,text/*" onchange="uploadFile(event)" hidden/>
+              </label>
+              <select id="sampleSelect" onchange="loadSample()"><option value="">Load a sample…</option></select>
+              <button class="ghost" id="clearBtn" onclick="clearDocs()">Clear</button>
+            </div>
+            <p class="trigger">▶ In production: fired when a document arrives (counterparty upload, email, or EDI/API).</p>
+            <div id="lockNote" class="lock-note" hidden>This transaction is settled. Start a <b>+ New transaction</b> for another cycle.</div>
+            <div id="docs" class="empty">Earmark the wallet, then add documents.</div>
+          </section>
+
+          <!-- Extraction -->
+          <section class="card">
+            <h2>Ⓔ AI extraction <span class="sub">— the model reads; confidence per field</span></h2>
+            <div class="ext-toolbar">
+              <button class="primary" id="extractBtn" onclick="extract()" disabled>Extract facts</button>
+              <span class="ext-group">
+                <span id="extStatus" class="pill grade">…</span>
+                <button id="extBtn" class="ghost" onclick="toggleExtraction()">…</button>
+              </span>
+            </div>
+            <p class="trigger">▶ In production: automatic on document arrival — the model asserts facts with confidence; it never decides.</p>
+            <div id="extraction" class="empty">Add documents, then extract.</div>
+          </section>
+
+          <!-- Examination -->
+          <section class="card">
+            <h2>Ⓕ Examination <span class="sub">— rules determine; conditions met / not met</span></h2>
+            <button class="primary" id="examineBtn" onclick="examine()" disabled>Examine against contract</button>
+            <p class="trigger">▶ In production: automatic once facts are extracted — the deterministic engine evaluates every condition.</p>
+            <div id="examination"></div>
+          </section>
+
+          <!-- Determination + disburse -->
+          <section class="card" id="detCard" hidden>
+            <h2>Ⓖ Determination &amp; disbursement</h2>
+            <p class="trigger">▶ In production: disbursement fires automatically on a RELEASE determination (money plane acts on the determination). HOLD / approval route to a human.</p>
+            <div id="determination"></div>
+          </section>
+
+          <section class="card" id="approvalCard" hidden>
+            <h2>Approval · four-eyes <span class="sub">— human decision re-enters as evidence</span></h2>
+            <p class="trigger">▶ In production: the only human step on this path — fired by the counterparty approving on their portal.</p>
+            <div id="approvalBody"></div>
+          </section>
+        </div>
+
+        <div>
+          <section class="card">
+            <h2>Escrow wallet · hierarchy</h2>
+            <div id="wallet" class="empty">—</div>
+          </section>
+          <section class="card">
+            <h2>Flow · this transaction on the graph</h2>
+            <div id="stepper" class="stepper"></div>
+          </section>
+          <section class="card">
+            <h2>Decision journal · append-only</h2>
+            <div id="journal" class="empty">—</div>
+            <div id="replayResult"></div>
+          </section>
+        </div>
       </div>
     </div>
   </main>

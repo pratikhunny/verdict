@@ -19,5 +19,14 @@ public enum FactKey {
     /** The shipment date on the transport document. Value: ISO-8601 date. */
     SHIPMENT_DATE,
     /** A finding grade approved by an entitled party. Value: the {@code FindingGrade} name. */
-    APPROVAL_GRANTED
+    APPROVAL_GRANTED,
+
+    // ---- construction retention (RERA) ----
+
+    /** Whether an engineer/architect completion certificate is present. Value: {@code "true"/"false"}. */
+    CERTIFICATE_PRESENT,
+    /** The certified construction completion, as a whole-number percentage. Value: an integer. */
+    COMPLETION_PERCENT,
+    /** Whether an outstanding objection or lien is recorded. Value: {@code "true"/"false"}. */
+    OBJECTION_RAISED
 }

@@ -13,6 +13,32 @@ public final class EvidenceCorpus {
     /** One document reduced to its identity, type and readable text. */
     public record DocText(String id, String type, String content) {}
 
+    /** Construction-retention (RERA) documents — engineer completion certificates — per scenario. */
+    public List<DocText> constructionDocumentsFor(String scenario) {
+        String s = scenario.toUpperCase();
+        String header = """
+                ENGINEER COMPLETION CERTIFICATE
+                Project: Marina Heights, Tower B      RERA Reg: RERA-2026-MH-0007
+                Certifying engineer: R. Iyer, Chartered Engineer (Licence CE-4471)
+                Milestone: Structure
+                """;
+        String content = switch (s) {
+            case "CLEAN" -> header + "Certified completion: 45%\nMilestone clear for disbursement.\n";
+            case "INCOMPLETE" -> header + "Certified completion: 30%\nWork continues; not yet at milestone.\n";
+            case "OBJECTION" -> header + "Certified completion: 45%\n"
+                    + "NOTE: An objection / lien has been filed against this milestone by the buyers' association.\n";
+            case "MISSING_CERT" -> """
+                    DISBURSEMENT REQUEST
+                    Project: Marina Heights, Tower B
+                    The developer requests release of the structure-milestone tranche.
+                    Supporting proofs to follow.
+                    """;
+            default -> throw new IllegalArgumentException("unknown construction scenario: " + scenario);
+        };
+        String type = s.equals("MISSING_CERT") ? "disbursement-request" : "completion-certificate";
+        return List.of(new DocText("DOC-CERT-" + s, type, content));
+    }
+
     /** The three documents of one evidence pack, as text. */
     public List<DocText> documentsFor(EvidencePack pack) {
         return switch (pack) {

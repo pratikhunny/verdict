@@ -1,100 +1,203 @@
 package com.sc.verdict.app;
 
-import com.sc.verdict.evidence.EvidencePack;
-import com.sc.verdict.orchestrator.Graphs;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 /**
- * The REST surface (HLD §9), narrowed to what the two-screen demo drives. Every state-changing call
- * runs the real engine, ledger, journal and reconciliation via {@link DealService}; the controller
- * only maps HTTP to those operations.
+ * The REST surface. Every state-changing call runs the real engine, ledger, journal and
+ * reconciliation via {@link TransactionService}; the controller only maps HTTP to those operations.
+ * One master contract, many transactions, each its own fund → upload → extract → examine → pay cycle.
  */
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
-    private final DealService service;
+    private final TransactionService service;
+    private final DealCatalog catalog;
+    private final GraphCatalog graphs;
+    private final SampleDocuments samples;
 
-    public ApiController(DealService service) {
+    public ApiController(TransactionService service, DealCatalog catalog, GraphCatalog graphs, SampleDocuments samples) {
         this.service = service;
+        this.catalog = catalog;
+        this.graphs = graphs;
+        this.samples = samples;
     }
 
-    @GetMapping("/deal")
-    public Views.DealView deal() {
-        return service.dealView();
+    // ---- deal types, contract, graph, samples ----
+
+    @GetMapping("/dealtypes")
+    public List<String> dealTypes() {
+        return catalog.dealTypes();
     }
 
-    @GetMapping("/graphs")
-    public List<Views.GraphView> graphs() {
-        return Graphs.all().stream().map(Mapper::graph).toList();
+    @GetMapping("/contract")
+    public Views.ContractView contract(@RequestParam(value = "dealType", required = false) String dealType) {
+        return catalog.contractView(dealType == null ? DealCatalog.MARKETPLACE : dealType);
     }
 
-    /** Current extraction mode (FIXTURE / LIVE) and whether the live model is available. */
+    @GetMapping("/graph")
+    public Views.GraphView2 graph(@RequestParam(value = "dealType", required = false) String dealType) {
+        return graphs.forDealType(dealType);
+    }
+
+    @GetMapping("/samples")
+    public List<SampleDocuments.Sample> samples(@RequestParam(value = "dealType", required = false) String dealType) {
+        return samples.scenariosFor(dealType);
+    }
+
+    // ---- extraction mode toggle ----
+
     @GetMapping("/extraction")
-    public Views.ExtractionView extraction() {
-        return service.extractionStatus();
+    public Views.ExtractionModeView extractionMode() {
+        return service.extractionMode();
     }
 
-    /** The ops team's fixture/live toggle: {mode} is FIXTURE or LIVE. */
+    /** Ops toggle: {mode} is RULES (deterministic) or LLM (live AI). */
     @PostMapping("/extraction/{mode}")
-    public Views.ExtractionView setExtraction(@PathVariable String mode) {
+    public Views.ExtractionModeView setExtractionMode(@PathVariable String mode) {
         return service.setExtractionMode(mode);
     }
 
-    @PostMapping("/reset")
-    public Map<String, String> reset() {
-        service.reset();
-        return Map.of("status", "reset");
+    // ---- transactions ----
+
+    @GetMapping("/transactions")
+    public List<Views.TransactionView> transactions() {
+        return service.allTransactionViews();
     }
 
-    /** Run one evidence pack: CLEAN, COSMETIC_VARIANCE, SHORT_SHIPMENT, LATE_SHIPMENT. */
-    @PostMapping("/packs/{pack}")
-    public Views.DeterminationView runPack(@PathVariable String pack) {
-        return service.runPack(EvidencePack.valueOf(pack.toUpperCase()));
+    @PostMapping("/transactions")
+    public Views.TransactionView newTransaction(@RequestParam(value = "dealType", required = false) String dealType) {
+        return service.transactionView(service.newTransaction(dealType));
     }
 
-    /** Run the Pack 4 approval loop on a standing HOLD_PENDING_APPROVAL. */
-    @PostMapping("/approve")
-    public Views.ApprovalView approve() {
-        return service.approve();
+    @GetMapping("/transactions/{id}")
+    public Views.TransactionView transaction(@PathVariable String id) {
+        return service.transactionView(id);
     }
 
-    /** The determination awaiting the counterparty's approval, or {pending:false}. */
-    @GetMapping("/pending")
-    public Object pending() {
-        Views.DeterminationView v = service.pendingView();
+    /** COLLECT_FUNDS — fund the wallet. */
+    @PostMapping("/transactions/{id}/fund")
+    public Views.LedgerView fund(@PathVariable String id) {
+        service.fund(id);
+        return service.ledgerView(id);
+    }
+
+    /** EARMARK — reserve into per-payee wallet buckets. */
+    @PostMapping("/transactions/{id}/earmark")
+    public Views.LedgerView earmark(@PathVariable String id) {
+        service.earmark(id);
+        return service.ledgerView(id);
+    }
+
+    /** SPLIT + DISBURSE — pay the payees from the earmarks. */
+    @PostMapping("/transactions/{id}/disburse")
+    public Views.LedgerView disburse(@PathVariable String id) {
+        return service.disburse(id);
+    }
+
+    // ---- documents ----
+
+    /** Upload a real document (text file). PDF text extraction is a fast-follow. */
+    @PostMapping("/transactions/{id}/documents")
+    public Views.ExtractionResultView upload(@PathVariable String id,
+                                             @RequestParam("file") MultipartFile file) throws IOException {
+        String text = new String(file.getBytes(), StandardCharsets.UTF_8);
+        service.upload(id, file.getOriginalFilename() == null ? "document.txt" : file.getOriginalFilename(), text);
+        return service.extractionView(id);
+    }
+
+    /** Paste document text (for when you don't have a file handy). */
+    @PostMapping("/transactions/{id}/documents/text")
+    public Views.ExtractionResultView uploadText(@PathVariable String id, @RequestBody TextUpload body) {
+        service.upload(id, body.filename() == null ? "pasted.txt" : body.filename(), body.text());
+        return service.extractionView(id);
+    }
+
+    /** Load a ready-made sample document set: CLEAN, COSMETIC_VARIANCE, SHORT_SHIPMENT, LATE_SHIPMENT. */
+    @PostMapping("/transactions/{id}/samples/{scenario}")
+    public Views.ExtractionResultView loadSample(@PathVariable String id, @PathVariable String scenario) {
+        service.loadSample(id, scenario);
+        return service.extractionView(id);
+    }
+
+    @DeleteMapping("/transactions/{id}/documents")
+    public Views.ExtractionResultView clearDocuments(@PathVariable String id) {
+        service.clearDocuments(id);
+        return service.extractionView(id);
+    }
+
+    @GetMapping("/transactions/{id}/extraction")
+    public Views.ExtractionResultView extractionView(@PathVariable String id) {
+        return service.extractionView(id);
+    }
+
+    // ---- extract → examine → approve ----
+
+    @PostMapping("/transactions/{id}/extract")
+    public Views.ExtractionResultView extract(@PathVariable String id) {
+        service.extract(id);
+        return service.extractionView(id);
+    }
+
+    @PostMapping("/transactions/{id}/examine")
+    public Views.DeterminationView examine(@PathVariable String id) {
+        return Mapper.determination(service.examine(id));
+    }
+
+    @PostMapping("/transactions/{id}/approve")
+    public Views.ApprovalView approve(@PathVariable String id) {
+        return service.approve(id);
+    }
+
+    @PostMapping("/transactions/{id}/replay/{determinationId}")
+    public Views.ReplayView replay(@PathVariable String id, @PathVariable String determinationId) {
+        return service.replay(id, determinationId);
+    }
+
+    // ---- per-transaction views ----
+
+    @GetMapping("/transactions/{id}/ledger")
+    public Views.LedgerView ledger(@PathVariable String id) {
+        return service.ledgerView(id);
+    }
+
+    @GetMapping("/transactions/{id}/journal")
+    public Views.JournalView journal(@PathVariable String id) {
+        return service.journalView(id);
+    }
+
+    @GetMapping("/transactions/{id}/pending")
+    public Object pending(@PathVariable String id) {
+        Views.DeterminationView v = service.pendingView(id);
         return v == null ? Map.of("pending", false) : v;
     }
 
-    @GetMapping("/ledger")
-    public Views.LedgerView ledger() {
-        return service.ledgerView();
+    @GetMapping("/transactions/{id}/determination")
+    public Object determination(@PathVariable String id) {
+        Views.DeterminationView v = service.determinationView(id);
+        return v == null ? Map.of("determined", false) : v;
     }
 
-    @GetMapping("/journal")
-    public Views.JournalView journal() {
-        return service.journalView();
-    }
-
-    @PostMapping("/replay/{determinationId}")
-    public Views.ReplayView replay(@PathVariable String determinationId) {
-        return service.replay(determinationId);
-    }
-
-    // ---- error mapping: stable, machine-readable, per HLD §9 ----
+    public record TextUpload(String filename, String text) {}
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
-    public ResponseEntity<Map<String, String>> badRequest(RuntimeException e) {
+    public ResponseEntity<Map<String, String>> conflict(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
     }
 }

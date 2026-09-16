@@ -178,13 +178,24 @@ That only works if the ports genuinely exist. They do. Keep it that way.
 - `src/test/java/com/sc/verdict/party/AuthorityScenarios.java` — runnable, 12 scenarios
 - `src/main/java/com/sc/verdict/app/` — L9 shell (phase 2a): Spring Boot 3.5.16, `ApiController`
   (REST per HLD §9), `DealService` (in-memory orchestration), `Views`/`Mapper` (DTOs)
-- `src/main/java/com/sc/verdict/app/LlmExtractionAdapter.java` — **AI use (L3)**: real LLM extraction
-  via **Spring AI 1.1.8** (provider-agnostic `ChatModel` — swap the starter to change backend model).
-  `RoutingExtractionAdapter` toggles fixture ↔ live at runtime (ops button); default is fixture so the
-  demo stays deterministic. Boots with no key; live reports unavailable until `ANTHROPIC_API_KEY` set.
-  This is where AI *reads*; the engine still decides — enforced by `ArchitectureRules` (ADR-002).
-- `src/main/resources/static/` — two screens: `index.html` (ops console, incl. AI extraction toggle),
-  `portal.html` (counterparty portal), dependency-free JS/CSS
+- `src/main/java/com/sc/verdict/app/` — transaction-based web layer: `TransactionService` (many deal
+  types via `DealCatalog`, many transactions — each its own fund→earmark→intake→examine→determine→
+  disburse lifecycle; money steps separated from decision steps), `GraphCatalog` (per-deal-type DAG
+  with explicit edges), `ApiController`, `Views`/`Mapper`
+- **Two runnable deal types**: Marketplace trade (`HeroDealRegistry`, pro-rata partial release) and
+  Construction retention / RERA (`contract/ConstructionDealRegistry`, milestone-binary + engineer
+  certificate + objection approval). Engine additions were purely additive — new `Condition.Kind`s
+  (CERTIFICATE_PRESENT, COMPLETION_AT_LEAST, NO_OUTSTANDING_OBJECTION), `FactKey`s and a `FindingGrade`
+  (OBJECTION); marketplace paths unchanged (43 pack expectations still green).
+- **AI use (L3)** — document upload → extraction with confidence: `DocumentExtractor` port with
+  `DeterministicDocumentExtractor` (regex over the uploaded text, reproducible) and
+  `LlmDocumentExtractor` (**Spring AI 1.1.8**, provider-agnostic `ChatModel` — swap the starter to
+  change backend model). `ExtractionRouter` toggles rules ↔ live at runtime (ops button); default is
+  rules. Boots with no key; live reports unavailable until `ANTHROPIC_API_KEY` set. AI *reads*; the
+  engine decides — enforced by `ArchitectureRules` (ADR-002). `SampleDocuments` provides demo doc sets.
+- `src/main/resources/static/` — two screens: `index.html` (ops console — staged lifecycle: contract
+  & parties → transactions → documents → extraction+confidence → examination → determination →
+  ledger/journal), `portal.html` (counterparty portal), dependency-free JS/CSS
 
 Verify with:
 ```bash

@@ -15,12 +15,17 @@ import java.util.Objects;
  * <p>The clause reference is carried so that a finding can cite the exact clause it breaches, which
  * is the difference between "quantity mismatch" and a findings notice an ops officer can defend.
  */
-public record Condition(ConditionId id, Kind kind, String clauseReference) {
+public record Condition(ConditionId id, Kind kind, String clauseReference, String param) {
 
     public Condition {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(clauseReference, "clauseReference");
+    }
+
+    /** Most conditions carry no parameter; the threshold ones (e.g. COMPLETION_AT_LEAST) do. */
+    public Condition(ConditionId id, Kind kind, String clauseReference) {
+        this(id, kind, clauseReference, null);
     }
 
     /**
@@ -35,6 +40,15 @@ public record Condition(ConditionId id, Kind kind, String clauseReference) {
         /** The evidenced quantity matches the contracted quantity. */
         QUANTITY_MATCHES,
         /** The shipment date is on or before the contract's latest shipment date. */
-        SHIPPED_WITHIN_LATEST_DATE
+        SHIPPED_WITHIN_LATEST_DATE,
+
+        // ---- construction retention (RERA) ----
+
+        /** An engineer/architect completion certificate is present. */
+        CERTIFICATE_PRESENT,
+        /** Certified completion is at least the milestone threshold (in {@link Condition#param()}, a %). */
+        COMPLETION_AT_LEAST,
+        /** No outstanding objection or lien is recorded against the milestone. */
+        NO_OUTSTANDING_OBJECTION
     }
 }

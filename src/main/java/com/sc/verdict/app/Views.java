@@ -4,8 +4,7 @@ import java.util.List;
 
 /**
  * The JSON view models the API returns — a stable, demo-friendly shape decoupled from the domain
- * records, so the API contract does not shift when an internal type changes. Money is rendered as
- * {@code {amount, currency}} strings; instants as ISO-8601.
+ * records. Money is rendered as {@code {amount, currency}} strings; instants as ISO-8601.
  */
 public final class Views {
 
@@ -13,15 +12,41 @@ public final class Views {
 
     public record MoneyDto(String amount, String currency) {}
 
-    public record DealView(
-            String id, MoneyDto contractValue, long quantity, String goods, String latestShipmentDate,
-            List<ObligationDto> obligations, List<ConditionDto> conditions) {}
+    // ---- contract & parties ----
 
-    public record ObligationDto(
-            String id, String payee, String payeeParty, String rule, boolean severable,
-            String clause, MoneyDto fullEntitlement) {}
+    public record ContractView(
+            String id, String dealType, MoneyDto tranche, List<ChipDto> chips,
+            String tolerance, List<PartyView> parties, List<String> mandate, List<ConditionDto> conditions,
+            List<ObligationDto> payees) {}
+
+    public record ChipDto(String label, String value) {}
+
+    public record PartyView(String name, String role, String jurisdiction, String note) {}
 
     public record ConditionDto(String kind, String clause) {}
+
+    public record ObligationDto(String id, String payee, String payeeParty, String rule,
+                                boolean severable, String clause, MoneyDto fullEntitlement) {}
+
+    // ---- transactions ----
+
+    public record TransactionView(String id, String dealType, String status, MoneyDto held, MoneyDto released,
+                                  MoneyDto retained, String outcome, int documentCount,
+                                  boolean funded, boolean earmarked, boolean extracted,
+                                  boolean determined, boolean disbursed,
+                                  MoneyDto fundAmount, MoneyDto milestoneValue) {}
+
+    // ---- documents & extraction ----
+
+    public record UploadedDocView(String id, String filename, String type, int sizeBytes, String text) {}
+
+    public record FactView(String field, String key, String value, double confidence, String sourceDocument) {}
+
+    public record ExtractionResultView(String extractor, List<UploadedDocView> documents, List<FactView> facts) {}
+
+    public record ExtractionModeView(String mode, boolean liveAvailable, String model) {}
+
+    // ---- determination ----
 
     public record DeterminationView(
             String id, String outcome, MoneyDto released, MoneyDto retained,
@@ -37,24 +62,24 @@ public final class Views {
 
     public record VerdictDto(String condition, String status, String grade) {}
 
-    public record LedgerView(
-            MoneyDto held, MoneyDto unallocated, MoneyDto reserved, MoneyDto disbursed,
-            List<EarmarkDto> earmarks, ReconDto reconciliation) {}
+    // ---- ledger & journal ----
 
-    public record EarmarkDto(String obligation, MoneyDto amount) {}
+    public record LedgerView(MoneyDto held, MoneyDto unallocated, MoneyDto reserved, MoneyDto disbursed,
+                             List<EarmarkDto> earmarks, ReconDto reconciliation) {}
+
+    public record EarmarkDto(String obligation, String payee, MoneyDto amount) {}
 
     public record ReconDto(MoneyDto entitlementTotal, MoneyDto earmarkTotal, boolean balanced) {}
 
     public record JournalView(List<EntryDto> entries) {}
 
-    public record EntryDto(
-            String id, String recordedAt, String determinationId, String outcome,
-            String ruleSetVersion, String effectiveAt, String evidenceDigestShort, int factCount) {}
+    public record EntryDto(String id, String recordedAt, String determinationId, String outcome,
+                           String ruleSetVersion, String effectiveAt, String evidenceDigestShort, int factCount) {}
 
-    public record ReplayView(
-            String determinationId, boolean identical,
-            String originalOutcome, String replayedOutcome,
-            MoneyDto originalReleased, MoneyDto replayedReleased) {}
+    public record ReplayView(String determinationId, boolean identical, String originalOutcome,
+                             String replayedOutcome, MoneyDto originalReleased, MoneyDto replayedReleased) {}
+
+    // ---- approval & graphs ----
 
     public record ApprovalView(List<StepDto> steps, DeterminationView determination) {}
 
@@ -62,5 +87,10 @@ public final class Views {
 
     public record GraphView(String name, List<String> nodes) {}
 
-    public record ExtractionView(String mode, boolean liveAvailable, String model) {}
+    /** A real graph: nodes with positions and explicit edges (edges = transitions/conditions). */
+    public record GraphView2(String name, List<GNode> nodes, List<GEdge> edges) {}
+
+    public record GNode(String id, String label, int x, int y, String kind) {}
+
+    public record GEdge(String from, String to, String label, boolean dashed) {}
 }

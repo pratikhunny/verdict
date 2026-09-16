@@ -121,10 +121,15 @@ public final class ExaminationEngine {
         // Fail closed on missing or low-confidence evidence, except that an absent eBL is a
         // MISSING_DOCUMENT finding rather than an indeterminate one — the document simply is not there.
         if (pf.isEmpty()) {
-            if (condition.kind() == Condition.Kind.DOCUMENT_PRESENT) {
+            // Objection absent means "no objection" — the milestone is not blocked by one.
+            if (condition.kind() == Condition.Kind.NO_OUTSTANDING_OBJECTION) {
+                return ConditionVerdict.met(condition.id());
+            }
+            if (condition.kind() == Condition.Kind.DOCUMENT_PRESENT
+                    || condition.kind() == Condition.Kind.CERTIFICATE_PRESENT) {
                 return ConditionVerdict.notMet(condition.id(), Finding.of(condition.id(),
                         FindingGrade.MISSING_DOCUMENT, Finding.Resolution.UNRESOLVED,
-                        condition.clauseReference(), 1.0, "required transport document not present"));
+                        condition.clauseReference(), 1.0, "required document not present"));
             }
             return ConditionVerdict.indeterminate(condition.id(), Finding.of(condition.id(),
                     FindingGrade.SUBSTANTIVE, Finding.Resolution.UNRESOLVED,
@@ -147,7 +152,31 @@ public final class ExaminationEngine {
             case GOODS_DESCRIPTION_MATCHES -> evaluateGoods(condition, deal, fact, tolerance);
             case QUANTITY_MATCHES -> evaluateQuantity(condition, deal, fact);
             case SHIPPED_WITHIN_LATEST_DATE -> evaluateShipDate(condition, deal, fact);
+            case CERTIFICATE_PRESENT -> fact.asBoolean()
+                    ? ConditionVerdict.met(condition.id())
+                    : ConditionVerdict.notMet(condition.id(), Finding.of(condition.id(),
+                        FindingGrade.MISSING_DOCUMENT, Finding.Resolution.UNRESOLVED,
+                        condition.clauseReference(), fact.confidence(), "completion certificate reported absent"));
+            case COMPLETION_AT_LEAST -> evaluateCompletion(condition, fact);
+            case NO_OUTSTANDING_OBJECTION -> fact.asBoolean()
+                    ? ConditionVerdict.notMet(condition.id(), Finding.of(condition.id(),
+                        FindingGrade.OBJECTION, Finding.Resolution.UNRESOLVED,
+                        condition.clauseReference(), fact.confidence(), "an outstanding objection or lien is recorded"))
+                    : ConditionVerdict.met(condition.id());
         };
+    }
+
+    private ConditionVerdict evaluateCompletion(Condition condition, ExtractedFact fact) {
+        long evidenced = fact.asLong();
+        long required = Long.parseLong(condition.param() == null ? "0" : condition.param().trim());
+        if (evidenced >= required) {
+            return ConditionVerdict.met(condition.id());
+        }
+        // Milestone completion is binary — a shortfall is not severable, so it holds (not pro-rata).
+        return ConditionVerdict.notMet(condition.id(), Finding.of(condition.id(),
+                FindingGrade.SUBSTANTIVE, Finding.Resolution.UNRESOLVED,
+                condition.clauseReference(), fact.confidence(),
+                "certified completion %d%% below required %d%% — milestone not reached".formatted(evidenced, required)));
     }
 
     private ConditionVerdict evaluateGoods(Condition condition, DealDefinition deal,
@@ -260,6 +289,9 @@ public final class ExaminationEngine {
             case GOODS_DESCRIPTION_MATCHES -> FactKey.GOODS_DESCRIPTION;
             case QUANTITY_MATCHES -> FactKey.EVIDENCED_QUANTITY;
             case SHIPPED_WITHIN_LATEST_DATE -> FactKey.SHIPMENT_DATE;
+            case CERTIFICATE_PRESENT -> FactKey.CERTIFICATE_PRESENT;
+            case COMPLETION_AT_LEAST -> FactKey.COMPLETION_PERCENT;
+            case NO_OUTSTANDING_OBJECTION -> FactKey.OBJECTION_RAISED;
         };
     }
 
