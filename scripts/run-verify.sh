@@ -19,3 +19,6 @@ java -cp out com.sc.verdict.party.AuthorityScenarios
 echo
 echo "===== EVIDENCE PACKS (4 determinations · replay · reconciliation) ====="
 java -cp out com.sc.verdict.demo.EvidencePackScenarios
+echo
+echo "===== ADAPTABILITY (a second deal type as data · same engine) ====="
+java -cp out com.sc.verdict.demo.AdaptabilityScenario

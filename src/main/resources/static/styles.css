@@ -1,16 +1,26 @@
 :root {
-  --green: #0d5c3f;
-  --green-dark: #1a3a2e;
+  /* Standard Chartered brand — green + blue duo (approximate; swap for exact SCB brand tokens).
+     White and grey are the additional/neutral palette. */
+  --sc-green: #38B449;      /* SC green */
+  --sc-green-deep: #0E6E3C; /* header / primary */
+  --sc-blue: #0072CE;       /* SC blue */
+  --sc-blue-deep: #00539B;
+
+  /* semantic aliases mapped onto the brand */
+  --green: var(--sc-green);
+  --green-dark: var(--sc-green-deep);
+  --blue: var(--sc-blue);
   --amber: #b5651d;
   --orange: #c2410c;
   --red: #9b1c1c;
-  --blue: #3a4a7a;
-  --ink: #1b2420;
-  --muted: #5f6b64;
-  --line: #dfe4e0;
-  --bg: #f4f6f4;
+
+  /* neutrals — white + greys */
+  --ink: #1f2430;
+  --muted: #626b78;
+  --line: #e3e6ec;
+  --bg: #f5f6f8;
   --card: #ffffff;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(16,30,54,0.08), 0 1px 2px rgba(16,30,54,0.04);
 }
 
 * { box-sizing: border-box; }
@@ -23,15 +33,16 @@ body {
 code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
 header.top {
-  background: var(--green-dark);
-  color: #eef4f0;
+  /* SCB green-to-blue, evoking the two-tone brandmark */
+  background: linear-gradient(100deg, var(--sc-green-deep) 0%, #0a5f5e 48%, var(--sc-blue-deep) 100%);
+  color: #eef4f8;
   padding: 18px 28px;
 }
 header.top .brand { display: flex; align-items: baseline; gap: 14px; }
 header.top h1 { margin: 0; font-size: 22px; letter-spacing: 0.5px; }
-header.top .tag { color: #a9c6b8; font-style: italic; font-size: 13px; }
+header.top .tag { color: #cfe3ea; font-style: italic; font-size: 13px; }
 header.top .nav { margin-left: auto; }
-header.top .nav a { color: #cfe0d7; text-decoration: none; font-size: 13px; margin-left: 16px; }
+header.top .nav a { color: #d6e6ee; text-decoration: none; font-size: 13px; margin-left: 16px; }
 header.top .nav a:hover { color: #fff; text-decoration: underline; }
 
 .deal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -53,7 +64,7 @@ button {
 button:hover { border-color: var(--green); }
 button:active { transform: translateY(1px); }
 button.primary { background: var(--green); color: #fff; border-color: var(--green); }
-button.primary:hover { background: #0a4a33; }
+button.primary:hover { background: var(--sc-green-deep); }
 button.ghost { background: transparent; box-shadow: none; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -103,7 +114,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pill.INDETERMINATE { background: #fdf3e0; color: var(--amber); }
 .pill.grade { background: #eef0f6; color: var(--blue); }
 
-.notice { background: #12241c; color: #d7e6dd; padding: 14px; border-radius: 8px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
+.notice { background: #0c2230; color: #d6e6ef; padding: 14px; border-radius: 8px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
 
 .steps { list-style: none; padding: 0; margin: 0; }
 .steps li { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }

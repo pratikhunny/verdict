@@ -172,6 +172,8 @@ That only works if the ports genuinely exist. They do. Keep it that way.
   graphs, same nodes), `GraphRunner`
 - `src/test/java/com/sc/verdict/demo/EvidencePackScenarios.java` — runnable, 43 expectations across
   the four packs + replay + reconciliation + the Pack 4 authority loop
+- `src/test/java/com/sc/verdict/demo/AdaptabilityScenario.java` — runnable proof that a second deal
+  type (equipment import, single-payee, non-severable) is pure data through the same engine (7 checks)
 - `src/test/java/com/sc/verdict/arch/ArchitectureRules.java` — runnable, fails on a forbidden import
 - `src/test/java/com/sc/verdict/party/AuthorityScenarios.java` — runnable, 12 scenarios
 - `src/main/java/com/sc/verdict/app/` — L9 shell (phase 2a): Spring Boot 3.5.16, `ApiController`
