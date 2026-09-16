@@ -167,7 +167,7 @@ that keeps the planes apart.
 | **L2** Obligation Model | Decision | `contract` | Built | anything but `shared` |
 | L2 Contract→obligation extraction | — (adapter) | (LLM over fixed corpus) | **Mocked** · hand-authorable | — |
 | **L3** Evidence Intake | Evidence | `evidence` | Built over fixed corpus | money plane |
-| L3 Extraction | — (adapter) | `evidence` (`ExtractionAdapter` port) | **Mocked** · `FixtureExtraction` | — |
+| L3 Extraction | — (adapter) | `ExtractionAdapter` port | **Fixture + live LLM** · Spring AI, runtime toggle | — |
 | **L4** Examination Engine | Decision | `examination` | **Built · the core** | money plane, extraction adapter |
 | **L5** Case & Approval | Decision | `casework` | Built, thin | money plane |
 | **L6** Fund Control Ledger | Money | `ledger` | **Built · never mocked** | obligation, condition, finding |
@@ -180,6 +180,16 @@ that keeps the planes apart.
 The determination contract is the record that crosses L4 → L6: it carries the outcome, the per-payee
 disbursement lines, the residual lines, and the pinned versions — and nothing that would let the
 money plane form an opinion (no findings, no conditions).
+
+**Where the AI is (and where it is not).** AI does the *reading*, never the deciding (ADR-002). The
+live extraction adapter (`LlmExtractionAdapter`, Spring AI over a provider-agnostic `ChatModel`)
+turns documents into `ExtractedFact`s with a confidence per field; it sits behind the same
+`ExtractionAdapter` port as the fixture, so the examination engine cannot tell a live extraction from
+a canned one — and `ArchitectureRules` fails the build if the engine imports the adapter at all. The
+backend model is adopted "as per availability" by swapping the Spring AI starter; ops flip
+fixture ↔ live at runtime with a button, defaulting to fixture so the four-pack demo stays
+deterministic. This is the bank-credible AI posture: *the model reads, the engine decides, and the
+separation is a build-enforced control, not a promise.*
 
 ---
 

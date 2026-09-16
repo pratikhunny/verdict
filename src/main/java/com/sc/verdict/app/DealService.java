@@ -8,7 +8,6 @@ import com.sc.verdict.contract.Obligation;
 import com.sc.verdict.entitlement.EntitlementLedger;
 import com.sc.verdict.evidence.EvidencePack;
 import com.sc.verdict.evidence.ExtractedFact;
-import com.sc.verdict.evidence.FixtureExtraction;
 import com.sc.verdict.evidence.Submission;
 import com.sc.verdict.examination.Determination;
 import com.sc.verdict.examination.ExaminationEngine;
@@ -54,7 +53,7 @@ public class DealService {
 
     private final HeroDealRegistry registry = new HeroDealRegistry();
     private final DealDefinition deal = registry.heroDeal();
-    private final FixtureExtraction extraction = new FixtureExtraction();
+    private final RoutingExtractionAdapter extraction;
     private final ExaminationEngine engine = new ExaminationEngine();
     private final HeroPartyFixtures parties = new HeroPartyFixtures();
     private final AuthorityPolicy authority = new AuthorityPolicy(parties, parties, parties);
@@ -67,8 +66,21 @@ public class DealService {
     private Submission lastLateSubmission;
     private Determination pendingApproval;
 
-    public DealService() {
+    public DealService(RoutingExtractionAdapter extraction) {
+        this.extraction = extraction;
         reset();
+    }
+
+    /** Current extraction mode and whether the live model is available. */
+    public synchronized Views.ExtractionView extractionStatus() {
+        return new Views.ExtractionView(
+                extraction.mode().name(), extraction.liveAvailable(), extraction.modelLabel());
+    }
+
+    /** Flip the extraction mode — the ops team's fixture/live button. */
+    public synchronized Views.ExtractionView setExtractionMode(String mode) {
+        extraction.setMode(RoutingExtractionAdapter.Mode.valueOf(mode.toUpperCase()));
+        return extractionStatus();
     }
 
     // ---------------------------------------------------------------- lifecycle

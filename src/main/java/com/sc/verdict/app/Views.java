@@ -61,4 +61,6 @@ public final class Views {
     public record StepDto(String label, String result, String detail) {}
 
     public record GraphView(String name, List<String> nodes) {}
+
+    public record ExtractionView(String mode, boolean liveAvailable, String model) {}
 }

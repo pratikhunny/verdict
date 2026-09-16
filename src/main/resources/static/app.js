@@ -18,7 +18,28 @@ async function init() {
     `<span class="chip">Latest shipment <b>${esc(deal.latestShipmentDate)}</b></span>`,
     `<span class="chip">Buyer MY · Supplier VN · SCB agent</span>`
   ].join('');
-  await Promise.all([loadGraphs(), refreshLedger(), refreshJournal()]);
+  await Promise.all([loadGraphs(), refreshLedger(), refreshJournal(), loadExtraction()]);
+}
+
+async function loadExtraction() {
+  const x = await getJSON('/api/extraction');
+  const status = $('extStatus'), btn = $('extBtn');
+  if (x.mode === 'LIVE') {
+    status.className = 'pill ' + (x.liveAvailable ? 'live' : 'live-off');
+    status.textContent = x.liveAvailable ? `Live AI · ${x.model}` : `Live AI · no key (${x.model})`;
+    btn.textContent = '◂ Fall back to fixtures';
+  } else {
+    status.className = 'pill fixture';
+    status.textContent = 'Fixtures · deterministic';
+    btn.textContent = x.liveAvailable ? 'Use live AI ▸' : 'Use live AI ▸ (needs key)';
+  }
+  btn.dataset.next = x.mode === 'LIVE' ? 'FIXTURE' : 'LIVE';
+}
+
+async function toggleExtraction() {
+  const next = $('extBtn').dataset.next || 'LIVE';
+  await postJSON('/api/extraction/' + next);
+  await loadExtraction();
 }
 
 async function runPack(pack) {
@@ -26,7 +47,9 @@ async function runPack(pack) {
     const det = await postJSON('/api/packs/' + pack);
     renderDetermination(det);
     await Promise.all([refreshLedger(), refreshJournal()]);
-  } catch (e) { alert(e.message); }
+  } catch (e) {
+    alert(e.message + '\n\nTip: switch AI extraction back to Fixtures to continue.');
+  }
 }
 
 async function resetDeal() {

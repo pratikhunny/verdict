@@ -27,7 +27,11 @@
       <button class="primary" onclick="runPack('SHORT_SHIPMENT')">3 · Short shipment</button>
       <button class="primary" onclick="runPack('LATE_SHIPMENT')">4 · Late shipment</button>
       <button class="ghost" onclick="resetDeal()">Reset</button>
-      <span class="hint" id="ruleset"></span>
+      <span class="ext-group" id="extGroup">
+        <span class="label">AI extraction (L3)</span>
+        <span id="extStatus" class="pill grade">…</span>
+        <button id="extBtn" class="ghost" onclick="toggleExtraction()">…</button>
+      </span>
     </div>
 
     <div class="grid">

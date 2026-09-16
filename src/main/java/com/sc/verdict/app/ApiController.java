@@ -39,6 +39,18 @@ public class ApiController {
         return Graphs.all().stream().map(Mapper::graph).toList();
     }
 
+    /** Current extraction mode (FIXTURE / LIVE) and whether the live model is available. */
+    @GetMapping("/extraction")
+    public Views.ExtractionView extraction() {
+        return service.extractionStatus();
+    }
+
+    /** The ops team's fixture/live toggle: {mode} is FIXTURE or LIVE. */
+    @PostMapping("/extraction/{mode}")
+    public Views.ExtractionView setExtraction(@PathVariable String mode) {
+        return service.setExtractionMode(mode);
+    }
+
     @PostMapping("/reset")
     public Map<String, String> reset() {
         service.reset();
