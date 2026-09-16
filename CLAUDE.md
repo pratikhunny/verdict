@@ -155,17 +155,44 @@ That only works if the ports genuinely exist. They do. Keep it that way.
 - `docs/adr/0001-three-plane-separation.md`
 - `src/main/java/com/sc/verdict/shared/` — `Money` (currency-safe, refuses cross-currency compare), `Ids`
 - `src/main/java/com/sc/verdict/party/` — L0 complete: `Party`, `DealRole`, `Mandate`,
-  `Instruction`, `AdmissionDecision`, `Ports`, `AuthorityPolicy`
+  `Instruction`, `AdmissionDecision`, `Ports`, `AuthorityPolicy`, `HeroPartyFixtures`
+- `src/main/java/com/sc/verdict/contract/` — L1/L2: `Obligation`, `Milestone`, `Condition`,
+  `EntitlementRule`, `DealDefinition`, `ContractRegistry`, `HeroDealRegistry`
+- `src/main/java/com/sc/verdict/evidence/` — L3: `ExtractedFact`, `Submission`, `Document`,
+  `ExtractionAdapter` (port), `FixtureExtraction` (four-pack corpus, real hashes)
+- `src/main/java/com/sc/verdict/examination/` — L4 core: `ExaminationEngine` (pure, no model call),
+  `Determination`, `Finding`/`FindingGrade`, `ConditionVerdict`, `ToleranceProfile`, `Outcome`
+- `src/main/java/com/sc/verdict/ledger/` — L6 money: `FundControlLedger` (double-entry, earmarks,
+  invariants), `Posting`
+- `src/main/java/com/sc/verdict/entitlement/` + `recon/` — `EntitlementLedger` and `Reconciliation`
+  (Σ entitlements = Σ earmarks, ADR-005)
+- `src/main/java/com/sc/verdict/journal/` — L8: `DecisionJournal` (append-only), `ReplayEngine`
+- `src/main/java/com/sc/verdict/casework/` — L5 thin: `ApprovalRequest`, `ApprovalWorkflow`
+- `src/main/java/com/sc/verdict/orchestrator/` — thin: `Node`, `GraphDefinition`, `Graphs` (four
+  graphs, same nodes), `GraphRunner`
+- `src/test/java/com/sc/verdict/demo/EvidencePackScenarios.java` — runnable, 43 expectations across
+  the four packs + replay + reconciliation + the Pack 4 authority loop
+- `src/test/java/com/sc/verdict/arch/ArchitectureRules.java` — runnable, fails on a forbidden import
 - `src/test/java/com/sc/verdict/party/AuthorityScenarios.java` — runnable, 12 scenarios
+- `src/main/java/com/sc/verdict/app/` — L9 shell (phase 2a): Spring Boot 3.5.16, `ApiController`
+  (REST per HLD §9), `DealService` (in-memory orchestration), `Views`/`Mapper` (DTOs)
+- `src/main/resources/static/` — two screens: `index.html` (ops console), `portal.html`
+  (counterparty portal), dependency-free JS/CSS
 
 Verify with:
 ```bash
-javac -d out $(find src -name '*.java') && java -cp out com.sc.verdict.party.AuthorityScenarios
+./scripts/run-verify.sh   # framework-free core: architecture rules + L0 (12) + evidence packs (43)
+./scripts/run-app.sh      # full service on http://localhost:8080 (ops console + portal)
 ```
 
-### Not yet built
-L2, L4, L6, L8, L5, orchestrator, Spring Boot shell, Postgres schema, web UI.
-ADRs 001–005 are written. L2/L4 acceptance criteria are in `docs/04-scenarios.md`.
+The domain core compiles and runs as **plain Java without Spring** — `run-verify.sh` excludes the
+`app` package deliberately to prove it. Spring lives only in `com.sc.verdict.app`.
+
+### Not yet built (phase 2b)
+Postgres schema + Flyway migrations (three schemas) + docker-compose, an optional Postgres-backed
+decision journal behind a profile, and the L7 settlement adapter (pacs.008 emit). ADRs 001–005 are
+written; L2/L4 acceptance criteria in `docs/04-scenarios.md` are met by the demo harness (43
+expectations).
 
 ---
 

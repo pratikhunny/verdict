@@ -24,8 +24,45 @@ public record Money(BigDecimal amount, Currency currency) implements Comparable<
         return new Money(new BigDecimal(amount), Currency.getInstance(currencyCode));
     }
 
+    public static Money zero(Currency currency) {
+        return new Money(BigDecimal.ZERO, currency);
+    }
+
     public boolean isNegative() {
         return amount.signum() < 0;
+    }
+
+    public boolean isZero() {
+        return amount.signum() == 0;
+    }
+
+    public Money plus(Money other) {
+        requireSameCurrency(other);
+        return new Money(amount.add(other.amount), currency);
+    }
+
+    public Money minus(Money other) {
+        requireSameCurrency(other);
+        return new Money(amount.subtract(other.amount), currency);
+    }
+
+    /**
+     * Scale by a dimensionless factor (a percentage or a pro-rata ratio), rounding to the
+     * currency's minor unit. Rounding is {@code HALF_UP}; callers that split one amount across
+     * several payees must reconcile the rounding remainder rather than trust the parts to sum
+     * (see the ledger's residual computation, which derives the retained amount by subtraction).
+     */
+    public Money multiply(BigDecimal factor) {
+        Objects.requireNonNull(factor, "factor");
+        BigDecimal scaled = amount.multiply(factor)
+                .setScale(currency.getDefaultFractionDigits(), java.math.RoundingMode.HALF_UP);
+        return new Money(scaled, currency);
+    }
+
+    private void requireSameCurrency(Money other) {
+        if (!currency.equals(other.currency)) {
+            throw new CurrencyMismatchException(currency, other.currency);
+        }
     }
 
     /**

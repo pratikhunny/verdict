@@ -76,4 +76,51 @@ public final class Ids {
         public DeterminationId { value = require(value, "determinationId"); }
         @Override public String toString() { return value; }
     }
+
+    public record FindingId(String value) {
+        public FindingId { value = require(value, "findingId"); }
+        @Override public String toString() { return value; }
+    }
+
+    /** A distinct payee of an obligation — supplier, marketplace, bank fee. */
+    public record PayeeId(String value) {
+        public PayeeId { value = require(value, "payeeId"); }
+        @Override public String toString() { return value; }
+    }
+
+    // ---- money plane ----
+
+    public record EarmarkId(String value) {
+        public EarmarkId { value = require(value, "earmarkId"); }
+        @Override public String toString() { return value; }
+    }
+
+    public record PostingId(String value) {
+        public PostingId { value = require(value, "postingId"); }
+        @Override public String toString() { return value; }
+    }
+
+    public record DisbursementId(String value) {
+        public DisbursementId { value = require(value, "disbursementId"); }
+        @Override public String toString() { return value; }
+    }
+
+    // ---- evidence plane ----
+
+    public record DocumentId(String value) {
+        public DocumentId { value = require(value, "documentId"); }
+        @Override public String toString() { return value; }
+    }
+
+    public record JournalEntryId(String value) {
+        public JournalEntryId { value = require(value, "journalEntryId"); }
+        @Override public String toString() { return value; }
+    }
+
+    // ---- casework ----
+
+    public record ApprovalId(String value) {
+        public ApprovalId { value = require(value, "approvalId"); }
+        @Override public String toString() { return value; }
+    }
 }
