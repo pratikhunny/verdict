@@ -12,7 +12,7 @@
       <div class="logo">V</div>
       <div>
         <h1>VERDICT</h1>
-        <span class="tag">We didn't automate the agreement. We automated the disagreement.</span>
+        <span class="tag">We didn't automate the agreement. We automated the <b>disagreement</b>.</span>
       </div>
       <nav class="nav">
         <a class="active" href="index.html">Ops console</a>
@@ -77,8 +77,23 @@
       <div class="sec"><span class="secnum">5</span><div><div class="sect">Transactions</div>
         <div class="secsub">Each instantiates the agreement: own parties, own amount, own lifecycle</div></div></div>
       <div class="txn-bar">
-        <button class="primary" onclick="newTransaction()">+ New transaction</button>
+        <button class="primary" onclick="openNewOrder()">+ New transaction</button>
         <div id="txnChips" class="txn-chips"></div>
+      </div>
+
+      <div id="orderForm" class="order-form" hidden>
+        <div class="of-head">
+          <div><div class="of-title" id="ofTitle">New order</div>
+            <div class="of-sub">Fill the order terms — or click <b>Fill for demo</b>. These values drive the examination, not just the display.</div></div>
+          <button class="ghost of-demo" onclick="fillDemo()">✨ Fill for demo</button>
+        </div>
+        <div id="ofFields" class="of-grid"></div>
+        <div class="of-actions">
+          <button class="primary" onclick="submitNewOrder()">Create transaction</button>
+          <button class="ghost" onclick="cancelNewOrder()">Cancel</button>
+          <span class="hint" id="ofError"></span>
+        </div>
+        <p class="trigger">Opened from the buyer's purchase order / the developer's milestone claim over API or EDI — the operator only reviews and confirms.</p>
       </div>
     </section>
 

@@ -21,6 +21,14 @@ public final class Views {
 
     public record ChipDto(String label, String value) {}
 
+    // ---- new-order form (per-transaction inputs the operator supplies) ----
+
+    /** The fields an operator fills to open a transaction under a deal type; drives a data-driven form. */
+    public record OrderFormView(String dealType, String title, List<FieldSpec> fields) {}
+
+    /** One input field. {@code type} is text|number|date|money; {@code demo} is the "Fill for demo" value. */
+    public record FieldSpec(String key, String label, String type, String demo, String suffix, String help) {}
+
     /** An onboarded entity (L0) — one-time KYC / screening, reused across deals. */
     public record PartyView(String name, String type, String jurisdiction, String screening) {}
 

@@ -32,6 +32,7 @@ async function init() {
 
 async function onDealType() {
   selectedDealType = $('dealTypeSelect').value;
+  if (!$('orderForm').hidden) cancelNewOrder();
   // Deselect a transaction of a different type so the graph and the transaction never disagree.
   if (sel) {
     const v = await getJSON(`/api/transactions/${sel}`);
@@ -133,12 +134,16 @@ function graphSVG(g, current) {
   const maxX = Math.max(...g.nodes.map(n => n.x)) + W + 20;
   const maxY = Math.max(...g.nodes.map(n => n.y)) + H + 34;
   const curNode = byId[current];
-  const kindFill = { money: '#fdf0e6', decision: '#e8f0ec', evidence: '#eceef5', branch: '#fdf0e6' };
-  const kindStroke = { money: '#b5651d', decision: '#0e6e3c', evidence: '#3a4a7a', branch: '#c2410c' };
+  const kindFill = { money: '#faf2e2', decision: '#e8f3ec', evidence: '#edeffb', branch: '#fbeede' };
+  const kindStroke = { money: '#B0770E', decision: '#0E6E3C', evidence: '#3B4CA0', branch: '#C2410C' };
 
-  let s = `<svg viewBox="0 0 ${maxX} ${maxY}" width="100%" preserveAspectRatio="xMidYMin meet" font-family="ui-monospace,monospace">`;
-  s += `<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8892a0"/></marker>
-        <marker id="arrb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c2410c"/></marker></defs>`;
+  let s = `<svg viewBox="0 0 ${maxX} ${maxY}" width="100%" preserveAspectRatio="xMidYMin meet" font-family="-apple-system,system-ui,sans-serif">`;
+  s += `<defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa4b2"/></marker>
+        <marker id="arrb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#C2410C"/></marker>
+        <filter id="nsh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#1f2a44" flood-opacity="0.12"/></filter>
+        <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#38B449" flood-opacity="0.55"/></filter>
+        </defs>`;
   // edges
   g.edges.forEach(e => {
     const a = byId[e.from], b = byId[e.to]; if (!a || !b) return;
@@ -167,8 +172,9 @@ function graphSVG(g, current) {
     const fill = isCur ? '#38B449' : (done ? '#e3f2ea' : kindFill[n.kind] || '#eef1f5');
     const stroke = isCur ? '#0e6e3c' : (kindStroke[n.kind] || '#cfd6de');
     const col = isCur ? '#fff' : (done ? '#0e6e3c' : '#3a4250');
-    s += `<rect x="${n.x}" y="${n.y}" rx="8" width="${W}" height="${H}" fill="${fill}" stroke="${stroke}" stroke-width="${isCur?2:1}"/>`;
-    s += `<text x="${n.x+W/2}" y="${n.y+H/2+4}" text-anchor="middle" font-size="11" font-weight="600" fill="${col}">${esc(n.label)}</text>`;
+    const filter = isCur ? 'filter="url(#glow)"' : 'filter="url(#nsh)"';
+    s += `<rect x="${n.x}" y="${n.y}" rx="10" width="${W}" height="${H}" fill="${fill}" stroke="${stroke}" stroke-width="${isCur?2:1.25}" ${filter}/>`;
+    s += `<text x="${n.x+W/2}" y="${n.y+H/2+4}" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.2" fill="${col}">${esc(n.label)}</text>`;
   });
   return s + `</svg>`;
 }
@@ -188,11 +194,56 @@ function updateNavBadge(count) {
   b.hidden = count === 0; b.textContent = count ? `● ${count} awaiting` : '';
 }
 
-async function newTransaction() {
-  const t = await postJSON('/api/transactions?dealType=' + encodeURIComponent(selectedDealType));
-  sel = t.id;
-  await selectTxn(t.id);
-  await loadTransactions();
+let currentOrderForm = null;
+
+async function openNewOrder() {
+  const spec = await getJSON('/api/orderform?dealType=' + encodeURIComponent(selectedDealType));
+  currentOrderForm = spec;
+  $('ofTitle').textContent = spec.title + ' · ' + spec.dealType;
+  $('ofError').textContent = '';
+  $('ofFields').innerHTML = spec.fields.map(f => {
+    const t = f.type === 'money' ? 'text' : (f.type === 'number' ? 'text' : f.type);
+    const suffix = f.suffix ? `<span class="of-suffix">${esc(f.suffix)}</span>` : '';
+    return `<div class="of-field">
+      <label>${esc(f.label)}</label>
+      <div class="of-input ${f.suffix ? 'has-suffix' : ''}">
+        <input type="${t}" data-key="${esc(f.key)}" data-kind="${esc(f.type)}" placeholder="${esc(f.demo)}"/>${suffix}
+      </div>
+      <span class="of-help">${esc(f.help || '')}</span></div>`;
+  }).join('');
+  $('orderForm').hidden = false;
+  $('orderForm').scrollIntoView({block: 'nearest'});
+}
+
+function fillDemo() {
+  if (!currentOrderForm) return;
+  const byKey = Object.fromEntries(currentOrderForm.fields.map(f => [f.key, f.demo]));
+  $('ofFields').querySelectorAll('input[data-key]').forEach(i => { i.value = byKey[i.dataset.key] || ''; });
+  $('ofError').textContent = '';
+}
+
+function cancelNewOrder() { $('orderForm').hidden = true; currentOrderForm = null; }
+
+async function submitNewOrder() {
+  const inputs = {};
+  let missing = null;
+  $('ofFields').querySelectorAll('input[data-key]').forEach(i => {
+    const val = i.value.trim();
+    if (!val && !missing) missing = i;
+    inputs[i.dataset.key] = val;
+  });
+  if (missing) {
+    $('ofError').textContent = 'Fill every field — or click "Fill for demo".';
+    missing.focus(); return;
+  }
+  try {
+    const t = await postJSON('/api/transactions?dealType=' + encodeURIComponent(selectedDealType),
+      {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(inputs)});
+    $('orderForm').hidden = true; currentOrderForm = null;
+    sel = t.id;
+    await selectTxn(t.id);
+    await loadTransactions();
+  } catch (e) { $('ofError').textContent = e.message; }
 }
 
 async function selectTxn(id) {
@@ -310,6 +361,22 @@ function renderExamination(det) {
       <td><span class="pill ${esc(v.status)}">${esc(v.status.replace('_',' '))}</span></td>
       <td>${v.grade ? `<span class="pill grade">${esc(v.grade)}</span>` : ''}</td></tr>`).join('')}</tbody></table>`;
 }
+function outcomeMeaning(det) {
+  const total = money({currency: det.released.currency,
+    amount: (Number(det.released.amount) + Number(det.retained.amount)).toString()});
+  switch (det.outcome) {
+    case 'RELEASE':
+      return `Every condition is met. The full tranche of <b>${money(det.released)}</b> releases to the payees — no human touched it.`;
+    case 'PARTIAL_RELEASE':
+      return `A <b>severable</b> condition fell short. <b>${money(det.released)}</b> of ${total} releases now, pro-rated to the evidence; the remainder is re-earmarked as a residual obligation — <b>not refused</b>. No system does this automatically; every escrow officer does it by hand.`;
+    case 'HOLD_PENDING_APPROVAL':
+      return `A finding is <b>waivable, but not by the engine</b>. Release is held and an approval request is drafted for the counterparty. Their approval re-enters as evidence and the engine re-examines — it never goes around the rules.`;
+    case 'HOLD':
+      return `A <b>substantive</b> condition failed. Nothing releases; the funds stay held pending resolution. Fail-closed.`;
+    default:
+      return '';
+  }
+}
 function renderDetermination(det, disbursed) {
   $('detCard').hidden = false;
   const showRetained = det.outcome === 'PARTIAL_RELEASE' || Number(det.retained.amount) > 0;
@@ -324,7 +391,8 @@ function renderDetermination(det, disbursed) {
     <div class="outcome"><span class="badge badge-${esc(det.outcome)}">${esc(det.outcome.replace(/_/g,' '))}</span>
       <div class="amounts"><div class="amt"><div class="n">${money(det.released)}</div><div class="l">To release</div></div>
         ${showRetained ? `<div class="amt"><div class="n">${money(det.retained)}</div><div class="l">To retain</div></div>` : ''}</div></div>
-    <h3>SPLIT · payees</h3>
+    <div class="verdict-meaning">${outcomeMeaning(det)}</div>
+    <h3>Split · payees</h3>
     <table><thead><tr><th>Payee</th><th>Obligation</th><th class="num">Amount</th></tr></thead><tbody>${splits}</tbody></table>
     ${residuals}
     <div style="margin-top:12px">${canDisburse

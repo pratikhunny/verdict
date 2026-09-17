@@ -72,6 +72,7 @@ public class TransactionService {
         final String dealType;
         final DealDefinition deal;
         final Money fundAmount;
+        final List<Views.ChipDto> orderTerms;
         final FundControlLedger ledger;
         final EntitlementLedger entitlements = new EntitlementLedger();
         final DecisionJournal journal = new DecisionJournal();
@@ -83,21 +84,22 @@ public class TransactionService {
         String status = "NEW";
         int subCounter = 0;
 
-        Txn(String id, String dealType, DealDefinition deal, Money fundAmount) {
+        Txn(String id, DealCatalog.Instance spec) {
             this.id = id;
-            this.dealType = dealType;
-            this.deal = deal;
-            this.fundAmount = fundAmount;
-            this.ledger = new FundControlLedger(fundAmount.currency());
+            this.dealType = spec.dealType();
+            this.deal = spec.deal();
+            this.fundAmount = spec.fundAmount();
+            this.orderTerms = spec.orderTerms();
+            this.ledger = new FundControlLedger(spec.fundAmount().currency());
         }
     }
 
     // ---------------------------------------------------------------- transactions
 
-    public synchronized String newTransaction(String dealType) {
-        String type = dealType != null && catalog.has(dealType) ? dealType : DealCatalog.MARKETPLACE;
+    /** Open a transaction under a deal type, using the operator's order-form inputs (may be empty). */
+    public synchronized String newTransaction(String dealType, Map<String, String> inputs) {
         String id = "TXN-%04d".formatted(++counter);
-        transactions.put(id, new Txn(id, type, catalog.deal(type), catalog.fundAmount(type)));
+        transactions.put(id, new Txn(id, catalog.instantiate(dealType, inputs)));
         return id;
     }
 
@@ -254,12 +256,11 @@ public class TransactionService {
     }
 
     public synchronized Views.TransactionView transactionView(String id) {
-        Txn t = require(id);
-        return Mapper.transaction(t, USD, catalog.orderTerms(t.dealType));
+        return Mapper.transaction(require(id), USD);
     }
 
     public synchronized List<Views.TransactionView> allTransactionViews() {
-        return transactions.values().stream().map(t -> Mapper.transaction(t, USD, catalog.orderTerms(t.dealType))).toList();
+        return transactions.values().stream().map(t -> Mapper.transaction(t, USD)).toList();
     }
 
     public synchronized Views.ExtractionResultView extractionView(String id) {

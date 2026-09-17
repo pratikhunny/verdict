@@ -61,6 +61,12 @@ public class ApiController {
         return samples.scenariosFor(dealType);
     }
 
+    /** The per-transaction fields an operator fills to open a transaction under this deal type. */
+    @GetMapping("/orderform")
+    public Views.OrderFormView orderForm(@RequestParam(value = "dealType", required = false) String dealType) {
+        return catalog.orderForm(dealType);
+    }
+
     // ---- extraction mode toggle ----
 
     @GetMapping("/extraction")
@@ -82,8 +88,9 @@ public class ApiController {
     }
 
     @PostMapping("/transactions")
-    public Views.TransactionView newTransaction(@RequestParam(value = "dealType", required = false) String dealType) {
-        return service.transactionView(service.newTransaction(dealType));
+    public Views.TransactionView newTransaction(@RequestParam(value = "dealType", required = false) String dealType,
+                                                @RequestBody(required = false) Map<String, String> inputs) {
+        return service.transactionView(service.newTransaction(dealType, inputs));
     }
 
     @GetMapping("/transactions/{id}")
