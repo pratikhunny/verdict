@@ -31,36 +31,52 @@ public class DealCatalog {
         entries.put(MARKETPLACE, new Entry(MARKETPLACE, marketplace,
                 trancheValue(marketplace),  // fund the shipment tranche (600k), fully earmarked
                 List.of(
-                    new Views.PartyView("Selangor Components Sdn Bhd", "Payer / Obligor", "MY", "Buyer — funds & approves"),
-                    new Views.PartyView("Hanoi Precision Trading JSC", "Payee / Obligee", "VN", "Supplier — submits, gets paid"),
-                    new Views.PartyView("Standard Chartered Bank", "Escrow Agent", "SG", "Holds funds, executes"),
-                    new Views.PartyView("Marketplace Operator", "Observer", "SG", "Read-only — cannot instruct")),
+                    new Views.PartyView("Selangor Components Sdn Bhd", "Corporate", "Malaysia", "CLEAR"),
+                    new Views.PartyView("Hanoi Precision Trading JSC", "Corporate", "Vietnam", "CLEAR"),
+                    new Views.PartyView("Standard Chartered Bank", "Bank (agent)", "Singapore", "CLEAR"),
+                    new Views.PartyView("Proxtera Marketplace", "Corporate", "Singapore", "CLEAR")),
                 List.of(
-                    "Buyer · Treasury Manager — waive discrepancies ≤ USD 50,000 (single signature)",
-                    "Buyer · CFO — dual signature, uncapped",
-                    "Bank · Escrow Operations — release / refund (single)"),
-                List.of(
-                    new Views.ChipDto("Goods", marketplace.contractedQuantity() + " units · " + marketplace.goodsDescription()),
-                    new Views.ChipDto("Proof", "eBL + invoice + packing list"),
-                    new Views.ChipDto("Latest shipment", marketplace.latestShipmentDate().toString()),
-                    new Views.ChipDto("Release rule", "pro-rata to evidenced quantity (severable)"))));
+                    new Views.ResponsibilityView("Selangor Components Sdn Bhd", "Payer / Obligor",
+                        "Treasury Manager — waive ≤ USD 50k (single); CFO — dual, uncapped"),
+                    new Views.ResponsibilityView("Hanoi Precision Trading JSC", "Payee / Obligee",
+                        "Submits shipment evidence; receives on release"),
+                    new Views.ResponsibilityView("Standard Chartered Bank", "Escrow Agent",
+                        "Release / refund (single signature)"),
+                    new Views.ResponsibilityView("Proxtera Marketplace", "Observer",
+                        "Read-only — cannot instruct")),
+                List.of( // ② template chips — type & rules only, no quantity/date/amount
+                    new Views.ChipDto("Goods type", marketplace.goodsDescription()),
+                    new Views.ChipDto("Proof required", "eBL + invoice + packing list"),
+                    new Views.ChipDto("Incoterms", "CIF Port Klang"),
+                    new Views.ChipDto("Release rule", "pro-rata to evidenced quantity (severable)")),
+                List.of( // Ⓐ order terms — per transaction
+                    new Views.ChipDto("Order quantity", String.format("%,d units", marketplace.contractedQuantity())),
+                    new Views.ChipDto("Latest shipment date", marketplace.latestShipmentDate().toString()))));
 
         DealDefinition construction = new ConstructionDealRegistry().constructionDeal();
         entries.put(CONSTRUCTION, new Entry(CONSTRUCTION, construction,
                 construction.contractValue(),  // fund the full RERA pool (1M); the milestone earmarks 40%
                 List.of(
-                    new Views.PartyView("Priya & Arjun Nair (homebuyers)", "Payer / Obligor", "IN", "Buyers — fund the RERA escrow"),
-                    new Views.PartyView("Marina Heights Developers Pvt Ltd", "Payee / Obligee", "IN", "Developer — paid per milestone"),
-                    new Views.PartyView("Standard Chartered Bank", "Escrow Agent", "IN", "Holds the pool, disburses on proof"),
-                    new Views.PartyView("RERA Authority", "Adjudicator", "IN", "Resolves objections / liens")),
+                    new Views.PartyView("Priya & Arjun Nair", "Individuals", "India", "CLEAR"),
+                    new Views.PartyView("Marina Heights Developers Pvt Ltd", "Corporate", "India", "CLEAR"),
+                    new Views.PartyView("Standard Chartered Bank", "Bank (agent)", "India", "CLEAR"),
+                    new Views.PartyView("RERA Authority", "Regulator", "India", "CLEAR")),
                 List.of(
-                    "Homebuyer — approve release notwithstanding an objection (dual signature)",
-                    "Bank · Escrow Operations — disburse milestone tranche (single)",
-                    "RERA Authority — adjudicate a contested milestone"),
-                List.of(
+                    new Views.ResponsibilityView("Priya & Arjun Nair", "Payer / Obligor (homebuyers)",
+                        "Approve release notwithstanding an objection (dual signature)"),
+                    new Views.ResponsibilityView("Marina Heights Developers Pvt Ltd", "Payee / Obligee (developer)",
+                        "Submits completion certificate; paid per milestone"),
+                    new Views.ResponsibilityView("Standard Chartered Bank", "Escrow Agent",
+                        "Disburse milestone tranche (single signature)"),
+                    new Views.ResponsibilityView("RERA Authority", "Adjudicator",
+                        "Adjudicate a contested milestone / objection")),
+                List.of( // ② template chips — type & rules only
                     new Views.ChipDto("Milestone", "Structure · 40% tranche"),
-                    new Views.ChipDto("Proof", "engineer completion certificate"),
-                    new Views.ChipDto("Release rule", "binary — certified completion ≥ 40% (not pro-rata)"))));
+                    new Views.ChipDto("Proof required", "engineer completion certificate"),
+                    new Views.ChipDto("Release rule", "binary — certified completion ≥ 40% (not pro-rata)")),
+                List.of( // Ⓐ order terms — per transaction
+                    new Views.ChipDto("Completion required", "≥ 40%"),
+                    new Views.ChipDto("Milestone claimed", "Structure"))));
     }
 
     public List<String> dealTypes() {
@@ -100,7 +116,7 @@ public class DealCatalog {
                 .toList();
         return new Views.ContractView(d.dealId().value(), e.name(), Mapper.money(trancheValue(d)),
                 e.chips(), ToleranceProfile.demoDefault().ruleReference(),
-                e.parties(), e.mandate(), conditions, payees);
+                e.parties(), e.responsibilities(), conditions, payees);
     }
 
     static List<Obligation> examinedObligations(DealDefinition d) {
@@ -115,6 +131,11 @@ public class DealCatalog {
         return v;
     }
 
+    public List<Views.ChipDto> orderTerms(String dealType) {
+        return entry(dealType).orderTerms();
+    }
+
     public record Entry(String name, DealDefinition deal, Money fundAmount,
-                        List<Views.PartyView> parties, List<String> mandate, List<Views.ChipDto> chips) {}
+                        List<Views.PartyView> parties, List<Views.ResponsibilityView> responsibilities,
+                        List<Views.ChipDto> chips, List<Views.ChipDto> orderTerms) {}
 }

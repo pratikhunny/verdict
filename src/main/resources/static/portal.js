@@ -14,22 +14,14 @@ async function postJSON(p) { const r = await fetch(p, {method: 'POST'}); if (!r.
 
 let awaitingTxn = null;
 
-async function init() {
-  const c = await getJSON('/api/contract');
-  $('dealChips').innerHTML = [
-    `<span class="chip"><b>${esc(c.id)}</b></span>`,
-    `<span class="chip">Shipment tranche <b>${money(c.shipmentValue)}</b></span>`,
-    `<span class="chip"><b>${c.quantity.toLocaleString()}</b> units · ${esc(c.goods)}</span>`
-  ].join('');
-  await refresh();
-}
+async function init() { await refresh(); }
 
 async function refresh() {
   const txns = await getJSON('/api/transactions');
   const pending = txns.filter(t => t.outcome === 'HOLD_PENDING_APPROVAL' && !t.disbursed);
-  const pendingTxn = pending[0];
-  awaitingTxn = pendingTxn ? pendingTxn.id : null;
-  const badge = document.getElementById('navBadge');
+  const t = pending[0];
+  awaitingTxn = t ? t.id : null;
+  const badge = $('navBadge');
   if (badge) { badge.hidden = pending.length === 0; badge.textContent = pending.length ? `● ${pending.length} awaiting` : ''; }
 
   if (!awaitingTxn) {
@@ -41,9 +33,13 @@ async function refresh() {
   const p = await getJSON(`/api/transactions/${awaitingTxn}/pending`);
   $('pending').innerHTML = `
     <div class="outcome"><span class="badge badge-HOLD_PENDING_APPROVAL">HOLD PENDING APPROVAL</span>
-      <span class="chip" style="background:#eef0f6;color:#3a4a7a">${esc(awaitingTxn)}</span></div>
-    <p class="hint">A finding on the shipment tranche requires your approval before release.
-      Your Treasury Manager may approve up to USD 50,000 alone; above that, the CFO must countersign.</p>
+      <span class="role-pill">${esc(t.id)} · ${esc(t.dealType)}</span></div>
+    <div class="tiles" style="grid-template-columns:1fr 1fr">
+      <div class="tile hero"><div class="n">${money(t.fundAmount)}</div><div class="l">Funds in escrow</div></div>
+      <div class="tile"><div class="n">${money(t.milestoneValue)}</div><div class="l">At stake this milestone</div></div>
+    </div>
+    <p class="hint">A finding requires your approval before release. Your Treasury Manager may approve up to
+      USD 50,000 alone; above that, the CFO must countersign (four-eyes).</p>
     <pre class="notice" id="noticeText"></pre>
     <button class="primary" style="margin-top:14px" onclick="approve()">Approve — Treasury &amp; CFO (dual sign)</button>`;
   $('noticeText').textContent = p.findingsNotice;
@@ -70,7 +66,7 @@ async function refreshLedger(txn) {
   const r = l.reconciliation;
   $('ledger').innerHTML = `
     <div class="tiles">
-      <div class="tile"><div class="n">${money(l.held)}</div><div class="l">Held balance</div></div>
+      <div class="tile"><div class="n">${money(l.held)}</div><div class="l">Held</div></div>
       <div class="tile"><div class="n">${money(l.disbursed)}</div><div class="l">Disbursed</div></div>
       <div class="tile"><div class="n">${money(l.reserved)}</div><div class="l">Earmarked</div></div>
       <div class="tile"><div class="n">${money(l.unallocated)}</div><div class="l">Unallocated</div></div>

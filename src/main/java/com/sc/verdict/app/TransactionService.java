@@ -254,11 +254,12 @@ public class TransactionService {
     }
 
     public synchronized Views.TransactionView transactionView(String id) {
-        return Mapper.transaction(require(id), USD);
+        Txn t = require(id);
+        return Mapper.transaction(t, USD, catalog.orderTerms(t.dealType));
     }
 
     public synchronized List<Views.TransactionView> allTransactionViews() {
-        return transactions.values().stream().map(t -> Mapper.transaction(t, USD)).toList();
+        return transactions.values().stream().map(t -> Mapper.transaction(t, USD, catalog.orderTerms(t.dealType))).toList();
     }
 
     public synchronized Views.ExtractionResultView extractionView(String id) {

@@ -32,7 +32,7 @@ final class Mapper {
 
     // ---- transactions ----
 
-    static Views.TransactionView transaction(TransactionService.Txn t, Currency ccy) {
+    static Views.TransactionView transaction(TransactionService.Txn t, Currency ccy, List<Views.ChipDto> orderTerms) {
         Money released = t.ledger.disbursedTotal();
         Money retained = t.ledger.reservedTotal();
         String outcome = t.determination != null ? t.determination.outcome().name() : t.status;
@@ -43,7 +43,7 @@ final class Mapper {
         return new Views.TransactionView(t.id, t.dealType, t.status, money(t.ledger.heldBalance()),
                 money(released), money(retained), outcome, t.uploads.size(),
                 t.funded, t.earmarked, t.submission != null, t.determination != null, t.disbursed,
-                money(t.fundAmount), money(milestone));
+                money(t.fundAmount), money(milestone), orderTerms);
     }
 
     // ---- documents & extraction ----

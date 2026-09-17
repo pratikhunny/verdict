@@ -15,13 +15,17 @@ public final class Views {
     // ---- contract & parties ----
 
     public record ContractView(
-            String id, String dealType, MoneyDto tranche, List<ChipDto> chips,
-            String tolerance, List<PartyView> parties, List<String> mandate, List<ConditionDto> conditions,
-            List<ObligationDto> payees) {}
+            String id, String dealType, MoneyDto tranche, List<ChipDto> chips, String tolerance,
+            List<PartyView> parties, List<ResponsibilityView> responsibilities,
+            List<ConditionDto> conditions, List<ObligationDto> payees) {}
 
     public record ChipDto(String label, String value) {}
 
-    public record PartyView(String name, String role, String jurisdiction, String note) {}
+    /** An onboarded entity (L0) — one-time KYC / screening, reused across deals. */
+    public record PartyView(String name, String type, String jurisdiction, String screening) {}
+
+    /** A party's role and signing authority in this particular deal — changes per deal. */
+    public record ResponsibilityView(String party, String role, String mandate) {}
 
     public record ConditionDto(String kind, String clause) {}
 
@@ -34,7 +38,7 @@ public final class Views {
                                   MoneyDto retained, String outcome, int documentCount,
                                   boolean funded, boolean earmarked, boolean extracted,
                                   boolean determined, boolean disbursed,
-                                  MoneyDto fundAmount, MoneyDto milestoneValue) {}
+                                  MoneyDto fundAmount, MoneyDto milestoneValue, List<ChipDto> orderTerms) {}
 
     // ---- documents & extraction ----
 

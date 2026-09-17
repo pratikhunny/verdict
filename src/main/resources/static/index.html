@@ -9,37 +9,73 @@
 <body>
   <header class="top">
     <div class="brand">
-      <h1>VERDICT</h1>
-      <span class="tag">We didn't automate the agreement. We automated the disagreement.</span>
+      <div class="logo">V</div>
+      <div>
+        <h1>VERDICT</h1>
+        <span class="tag">We didn't automate the agreement. We automated the disagreement.</span>
+      </div>
       <nav class="nav">
-        <a href="index.html">Ops console</a>
+        <a class="active" href="index.html">Ops console</a>
         <a href="portal.html">Counterparty portal <span id="navBadge" class="nav-badge" hidden></span></a>
       </nav>
     </div>
   </header>
 
   <main>
-    <!-- ① Deal type & graph — the very top -->
-    <section class="card">
-      <h2>① Deal type &amp; graph <span class="sub">— pick the master agreement; the graph dictates the flow</span></h2>
+    <!-- ============ SETUP ============ -->
+    <div class="band-label"><span>Setup</span><i>configured once, then reused by every transaction</i></div>
+
+    <!-- the four levels, explained -->
+    <div class="levels">
+      <div class="level"><span class="scope tpl">Template · fixed</span><b>① ② Master agreement</b>
+        <span>The <em>roles</em>, their <em>mandates</em>, and the <em>rules</em> — same for every transaction. No companies, no amounts.</span></div>
+      <div class="lvl-arrow">→</div>
+      <div class="level"><span class="scope l0">Onboarded once</span><b>③ Parties (entities)</b>
+        <span>Real legal entities, KYC &amp; screened once under L0. Independent of any deal.</span></div>
+      <div class="lvl-arrow">→</div>
+      <div class="level"><span class="scope deal">Fixed for this deal</span><b>④ Participants</b>
+        <span>Which onboarded entity fills each role — the same for every transaction under this deal.</span></div>
+      <div class="lvl-arrow">→</div>
+      <div class="level"><span class="scope txn">Per transaction · dynamic</span><b>⑤ Transaction (an order)</b>
+        <span>What's set fresh each order: <em>quantity</em>, <em>dates</em>, <em>amount</em>, and the <em>evidence</em>.</span></div>
+    </div>
+
+    <section class="card accent-cfg">
+      <div class="sec"><span class="secnum">1</span><div><div class="sect">Deal type &amp; graph <span class="scope tpl">Template</span></div>
+        <div class="secsub">Pick the master agreement — the graph is configuration and dictates the flow</div></div></div>
       <div class="dealtype-bar">
-        <label>Master agreement / deal type:
-          <select id="dealTypeSelect" onchange="onDealType()"></select>
-        </label>
+        <label>Master agreement</label>
+        <select id="dealTypeSelect" onchange="onDealType()"></select>
         <span class="hint" id="dealTypeNote"></span>
       </div>
       <div id="graph" class="graphwrap"></div>
     </section>
 
-    <!-- ② Master agreement (template — roles, split rules, conditions; no amounts) -->
-    <section class="card">
-      <h2>② Master agreement <span class="sub">— roles, split rules and conditions (a template — amounts are per transaction)</span></h2>
-      <div id="contract" class="empty">Loading…</div>
+    <section class="card accent-cfg">
+      <div class="sec"><span class="secnum">2</span><div><div class="sect">Agreement terms, rules &amp; mandates <span class="scope tpl">Template</span></div>
+        <div class="secsub">Roles &amp; their mandates + the split/condition rules — the reusable template. No companies, no amounts.</div></div></div>
+      <div id="terms"></div>
     </section>
 
-    <!-- ③ Transactions -->
-    <section class="card">
-      <h2>③ Transactions <span class="sub">— each instantiates the agreement: own parties, own amount, own lifecycle</span></h2>
+    <div class="two-up">
+      <section class="card accent-l0">
+        <div class="sec"><span class="secnum">3</span><div><div class="sect">Parties · entities <span class="scope l0">Onboarded once</span></div>
+          <div class="secsub">The real companies/people — KYC &amp; screened once (L0), reused across every deal &amp; transaction</div></div></div>
+        <div id="parties" class="empty">—</div>
+      </section>
+      <section class="card accent-l0">
+        <div class="sec"><span class="secnum">4</span><div><div class="sect">Participants · who fills each role <span class="scope deal">Fixed for this deal</span></div>
+          <div class="secsub">Assigns an onboarded entity (§3) to a role (§2). Same for every transaction under this deal — the role's mandate lives in §2.</div></div></div>
+        <div id="responsibilities" class="empty">—</div>
+      </section>
+    </div>
+
+    <!-- ============ OPERATIONS ============ -->
+    <div class="band-label op"><span>Operations</span><i>each transaction — its own hold → evaluate → pay</i></div>
+
+    <section class="card accent-op">
+      <div class="sec"><span class="secnum">5</span><div><div class="sect">Transactions</div>
+        <div class="secsub">Each instantiates the agreement: own parties, own amount, own lifecycle</div></div></div>
       <div class="txn-bar">
         <button class="primary" onclick="newTransaction()">+ New transaction</button>
         <div id="txnChips" class="txn-chips"></div>
@@ -49,30 +85,30 @@
     <div id="lifecycle" hidden>
       <div class="grid">
         <div>
-          <!-- Parties & amount for THIS transaction -->
-          <section class="card">
-            <h2>Ⓐ Parties &amp; amount <span class="sub">— onboarded for this transaction (L0)</span></h2>
+          <section class="card accent-l0">
+            <div class="sec"><span class="secbadge">A</span><div><div class="sect">Parties &amp; amount <span class="scope txn">Per transaction</span></div>
+              <div class="secsub">Dynamic — the amount funded and the counterparties for THIS transaction</div></div></div>
             <div id="txnParties" class="empty">—</div>
           </section>
 
-          <!-- Collect -->
-          <section class="card">
-            <h2>Ⓑ Collect funds <span class="sub">— money plane</span></h2>
+          <section class="card accent-money">
+            <div class="sec"><span class="secbadge money">B</span><div><div class="sect">Collect funds</div>
+              <div class="secsub">Money plane</div></div></div>
             <button class="primary" id="fundBtn" onclick="fund()">Fund wallet</button>
-            <p class="trigger">▶ In production: fired when the payer's funds settle into the escrow account (payment / RTGS webhook). No human click.</p>
+            <p class="trigger">Fired when the payer's funds settle into the escrow account (payment / RTGS webhook). No human click in production.</p>
             <div id="ledger" class="empty">—</div>
           </section>
 
-          <!-- Earmark -->
-          <section class="card">
-            <h2>Ⓒ Earmark to payees <span class="sub">— programmable wallet</span></h2>
+          <section class="card accent-money">
+            <div class="sec"><span class="secbadge money">C</span><div><div class="sect">Earmark to payees</div>
+              <div class="secsub">Programmable wallet</div></div></div>
             <button class="primary" id="earmarkBtn" onclick="earmark()" disabled>Earmark</button>
-            <p class="trigger">▶ In production: automatic once funding is confirmed — reserves each payee's entitlement into a sub-wallet.</p>
+            <p class="trigger">Automatic once funding is confirmed — reserves each payee's entitlement into a sub-wallet.</p>
           </section>
 
-          <!-- Documents -->
-          <section class="card" id="docCard">
-            <h2>Ⓓ Documents <span class="sub">— evidence intake</span></h2>
+          <section class="card accent-evidence" id="docCard">
+            <div class="sec"><span class="secbadge evidence">D</span><div><div class="sect">Documents</div>
+              <div class="secsub">Evidence intake</div></div></div>
             <div class="uploader">
               <label class="uploadbtn" id="uploadLabel">Upload document
                 <input type="file" id="fileInput" accept=".txt,.md,.csv,text/*" onchange="uploadFile(event)" hidden/>
@@ -80,58 +116,55 @@
               <select id="sampleSelect" onchange="loadSample()"><option value="">Load a sample…</option></select>
               <button class="ghost" id="clearBtn" onclick="clearDocs()">Clear</button>
             </div>
-            <p class="trigger">▶ In production: fired when a document arrives (counterparty upload, email, or EDI/API).</p>
+            <p class="trigger">Fired when a document arrives (counterparty upload, email, or EDI / API).</p>
             <div id="lockNote" class="lock-note" hidden>This transaction is settled. Start a <b>+ New transaction</b> for another cycle.</div>
             <div id="docs" class="empty">Earmark the wallet, then add documents.</div>
           </section>
 
-          <!-- Extraction -->
-          <section class="card">
-            <h2>Ⓔ AI extraction <span class="sub">— the model reads; confidence per field</span></h2>
-            <div class="ext-toolbar">
-              <button class="primary" id="extractBtn" onclick="extract()" disabled>Extract facts</button>
-              <span class="ext-group">
-                <span id="extStatus" class="pill grade">…</span>
-                <button id="extBtn" class="ghost" onclick="toggleExtraction()">…</button>
-              </span>
-            </div>
-            <p class="trigger">▶ In production: automatic on document arrival — the model asserts facts with confidence; it never decides.</p>
+          <section class="card accent-evidence">
+            <div class="sec"><span class="secbadge evidence">E</span><div><div class="sect">AI extraction</div>
+              <div class="secsub">The model reads — confidence per field; it never decides</div></div>
+              <span class="ext-group" style="margin-left:auto"><span id="extStatus" class="pill grade">…</span>
+                <button id="extBtn" class="ghost" onclick="toggleExtraction()">…</button></span></div>
+            <button class="primary" id="extractBtn" onclick="extract()" disabled>Extract facts</button>
+            <p class="trigger">Automatic on document arrival — the model asserts facts with confidence.</p>
             <div id="extraction" class="empty">Add documents, then extract.</div>
           </section>
 
-          <!-- Examination -->
-          <section class="card">
-            <h2>Ⓕ Examination <span class="sub">— rules determine; conditions met / not met</span></h2>
+          <section class="card accent-decision">
+            <div class="sec"><span class="secbadge decision">F</span><div><div class="sect">Examination</div>
+              <div class="secsub">Rules determine — conditions met / not met</div></div></div>
             <button class="primary" id="examineBtn" onclick="examine()" disabled>Examine against contract</button>
-            <p class="trigger">▶ In production: automatic once facts are extracted — the deterministic engine evaluates every condition.</p>
+            <p class="trigger">Automatic once facts are extracted — the deterministic engine evaluates every condition.</p>
             <div id="examination"></div>
           </section>
 
-          <!-- Determination + disburse -->
-          <section class="card" id="detCard" hidden>
-            <h2>Ⓖ Determination &amp; disbursement</h2>
-            <p class="trigger">▶ In production: disbursement fires automatically on a RELEASE determination (money plane acts on the determination). HOLD / approval route to a human.</p>
+          <section class="card accent-decision" id="detCard" hidden>
+            <div class="sec"><span class="secbadge decision">G</span><div><div class="sect">Determination &amp; disbursement</div>
+              <div class="secsub">The determination is emitted; the money plane acts on it</div></div></div>
+            <p class="trigger">Disbursement fires automatically on a RELEASE determination. HOLD / approval route to a human.</p>
             <div id="determination"></div>
           </section>
 
-          <section class="card" id="approvalCard" hidden>
-            <h2>Approval · four-eyes <span class="sub">— human decision re-enters as evidence</span></h2>
-            <p class="trigger">▶ In production: the only human step on this path — fired by the counterparty approving on their portal.</p>
+          <section class="card accent-decision" id="approvalCard" hidden>
+            <div class="sec"><span class="secbadge decision">↺</span><div><div class="sect">Approval · four-eyes</div>
+              <div class="secsub">Human decision re-enters as evidence</div></div></div>
+            <p class="trigger">The only human step on this path — fired by the counterparty approving on their portal.</p>
             <div id="approvalBody"></div>
           </section>
         </div>
 
         <div>
-          <section class="card">
-            <h2>Escrow wallet · hierarchy</h2>
+          <section class="card accent-money">
+            <div class="sec"><div class="sect">Escrow wallet · hierarchy</div></div>
             <div id="wallet" class="empty">—</div>
           </section>
           <section class="card">
-            <h2>Flow · this transaction on the graph</h2>
+            <div class="sec"><div class="sect">Flow · this transaction on the graph</div></div>
             <div id="stepper" class="stepper"></div>
           </section>
-          <section class="card">
-            <h2>Decision journal · append-only</h2>
+          <section class="card accent-evidence">
+            <div class="sec"><div class="sect">Decision journal · append-only</div></div>
             <div id="journal" class="empty">—</div>
             <div id="replayResult"></div>
           </section>

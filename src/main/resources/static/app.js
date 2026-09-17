@@ -48,7 +48,7 @@ async function applyDealType(dealType) {
     getJSON('/api/contract' + q), getJSON('/api/graph' + q), getJSON('/api/samples' + q)
   ]);
   currentContract = c;
-  renderContract(c);
+  renderTerms(c); renderParties(c); renderParticipants(c);
   currentGraphData = g;
   renderGraph();
   $('dealTypeNote').textContent = g.name.startsWith('Marketplace')
@@ -58,42 +58,68 @@ async function applyDealType(dealType) {
     samples.map(s => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('');
 }
 
-function renderContract(c) {
-  const chips = [`<span class="chip"><b>${esc(c.id)}</b></span>`]
-    .concat(c.chips.map(ch => `<span class="chip">${esc(ch.label)} <b>${esc(ch.value)}</b></span>`)).join('');
-  const parties = c.parties.map(p =>
-    `<tr><td><b>${esc(p.name)}</b></td><td>${esc(p.role)}</td><td>${esc(p.jurisdiction)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('');
-  const mandate = c.mandate.map(m => `<li>${esc(m)}</li>`).join('');
+function payeeRole(id) {
+  return (id || '').replace(/^PAYEE-/, '').toLowerCase().replace(/\b\w/g, m => m.toUpperCase()).replace(/-/g, ' ');
+}
+function renderTerms(c) {
+  const chips = c.chips.map(ch => `<div class="term"><div class="term-l">${esc(ch.label)}</div><div class="term-v">${esc(ch.value)}</div></div>`).join('');
   const payees = c.payees.map(o =>
-    `<tr><td class="mono">${esc(o.id)}</td><td>${esc(o.payeeParty)}</td><td>${esc(o.rule)}</td>
-         <td>${o.severable ? 'severable' : 'whole (not severable)'}</td></tr>`).join('');
+    `<tr><td class="mono">${esc(o.id)}</td><td><span class="role-pill">${esc(payeeRole(o.payee))}</span></td><td>${esc(o.rule)}</td>
+         <td>${o.severable ? '<span class="tag sev">severable</span>' : '<span class="tag whole">whole</span>'}</td></tr>`).join('');
   const conds = c.conditions.map(cd => `<span class="node-chip">${esc(cd.kind.replace(/_/g,' '))}</span>`).join(' ');
-  $('contract').innerHTML = `
-    <div class="deal-chips" style="margin-bottom:14px">${chips}</div>
-    <div class="two-col">
-      <div><h3>Roles &amp; mandates</h3>
-        <table><thead><tr><th>Party</th><th>Role</th><th>Juris.</th><th></th></tr></thead><tbody>${parties}</tbody></table>
-        <ul class="mandate">${mandate}</ul></div>
-      <div><h3>Obligations — split rules (%, not amounts)</h3>
-        <table><thead><tr><th>Obl.</th><th>Payee</th><th>Split rule</th><th></th></tr></thead><tbody>${payees}</tbody></table>
-        <h3 style="margin-top:12px">Conditions examined</h3><div>${conds}</div>
-        <p class="hint">Tolerance: ${esc(c.tolerance)} · amounts are set per transaction, below.</p></div>
-    </div>`;
+  $('terms').innerHTML = `
+    <div class="terms-grid">${chips}</div>
+    <h3 style="margin-top:16px">Obligations &amp; split rules <span class="sub">— by role, in %, not amounts</span></h3>
+    <table><thead><tr><th>Obligation</th><th>Payee role</th><th>Split rule</th><th>Severability</th></tr></thead><tbody>${payees}</tbody></table>
+    <h3 style="margin-top:14px">Conditions the engine examines</h3><div class="cond-row">${conds}</div>
+    <h3 style="margin-top:16px">Roles &amp; mandates <span class="sub">— the authority each role carries, defined by the agreement</span></h3>
+    <table class="resp"><thead><tr><th>Role</th><th>Signing authority (mandate)</th></tr></thead><tbody>${
+      c.responsibilities.map(r => `<tr><td><span class="role-pill">${esc(r.role)}</span></td><td class="muted">${esc(r.mandate)}</td></tr>`).join('')}</tbody></table>
+    <p class="hint">Tolerance rule: ${esc(c.tolerance)}. Roles &amp; mandates are fixed by the agreement; which company fills each role is §4; amounts &amp; quantities are per transaction.</p>`;
 }
 
-// Per-transaction parties + amount (the amount that will be funded for THIS transaction).
+function initial(name) { return (name || '?').trim().charAt(0).toUpperCase(); }
+function typeClass(t) { return /bank/i.test(t) ? 'bank' : (/regulator|authority/i.test(t) ? 'reg' : (/individual/i.test(t) ? 'ind' : 'corp')); }
+
+function renderParties(c) {
+  $('parties').innerHTML = `<div class="party-grid">${c.parties.map(p => `
+    <div class="party-card">
+      <div class="avatar ${typeClass(p.type)}">${esc(initial(p.name))}</div>
+      <div class="party-body"><div class="party-name">${esc(p.name)}</div>
+        <div class="party-meta">${esc(p.type)} · ${esc(p.jurisdiction)}</div></div>
+      <span class="screen ok">✓ ${esc(p.screening)}</span>
+    </div>`).join('')}</div>
+    <p class="hint">Onboarding is a one-time L0 step (identity, sanctions/CDD screening). Screening is re-checked at every instruction — fail-closed.</p>`;
+}
+
+function renderParticipants(c) {
+  $('responsibilities').innerHTML = `
+    <table class="resp"><thead><tr><th>Onboarded entity (§3)</th><th></th><th>Fills role (§2)</th></tr></thead><tbody>${
+    c.responsibilities.map(r => `<tr><td><b>${esc(r.party)}</b></td><td class="muted" style="width:24px">→</td>
+      <td><span class="role-pill">${esc(r.role)}</span></td></tr>`).join('')}</tbody></table>
+    <p class="hint">Just the assignment — an entity to a role. The role's authority is defined in §2. Fixed for every transaction under this master agreement.</p>`;
+}
+
+// Per-transaction: amount + order terms (quantity/date). Parties are fixed under §4, shown as a reference.
 function renderTxnParties(v) {
   if (!currentContract) { $('txnParties').innerHTML = ''; return; }
-  const parties = currentContract.parties.map(p =>
-    `<tr><td><b>${esc(p.name)}</b></td><td>${esc(p.role)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('');
+  const resp = currentContract.responsibilities || [];
+  const payer = resp.find(r => /payer/i.test(r.role)), payee = resp.find(r => /payee/i.test(r.role));
+  const between = payer && payee
+    ? `<div class="between"><span class="p-ent">${esc(payer.party)}</span><span class="p-role">Payer</span>
+         <span class="arrow">→</span><span class="p-ent">${esc(payee.party)}</span><span class="p-role">Payee</span></div>` : '';
+  const terms = (v.orderTerms || []).map(ch =>
+    `<div class="term"><div class="term-l">${esc(ch.label)}</div><div class="term-v">${esc(ch.value)}</div></div>`).join('');
   $('txnParties').innerHTML = `
+    ${between}
     <div class="tiles" style="grid-template-columns:1fr 1fr">
-      <div class="tile"><div class="n">${money(v.fundAmount)}</div><div class="l">Funds collected this transaction</div></div>
+      <div class="tile hero"><div class="n">${money(v.fundAmount)}</div><div class="l">Order amount — to be collected</div></div>
       <div class="tile"><div class="n">${money(v.milestoneValue)}</div><div class="l">Milestone entitlement at stake</div></div>
     </div>
-    <table><thead><tr><th>Party (onboarded)</th><th>Role</th><th></th></tr></thead><tbody>${parties}</tbody></table>
-    <p class="hint">Parties are onboarded once under L0 (KYC, screening, mandates) — reused across transactions.
-      Every state-changing step below passes the L0 admission gate before it acts.</p>`;
+    <p class="hint" style="margin-top:2px">Planned figures for this order. Nothing is collected until the wallet is funded (Ⓑ) — the actual balance is <b>Held</b>, below.</p>
+    <h3 style="margin-top:12px">Order terms <span class="sub">— set for this order, not the agreement</span></h3>
+    <div class="terms-grid">${terms}</div>
+    <p class="hint">The counterparties are the fixed deal participants (§4); only the amount, quantity, dates and evidence change per transaction.</p>`;
 }
 
 // ---- graph (real DAG from nodes + explicit edges) ----
